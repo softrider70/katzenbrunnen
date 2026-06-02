@@ -4,11 +4,82 @@
 #include "sdkconfig.h"
 
 // ============================================================================
-// GPIO Pin Configuration
+// GPIO Pin Configuration - Katzenbrunnen ESP32-S3
 // ============================================================================
-// Adjust these pins based on your hardware
-#define GPIO_LED        2   // LED pin (change as needed)
-#define GPIO_BUTTON     0   // Button pin (change as needed)
+#define GPIO_PIR_SENSOR  6   // PIR Bewegungssensor (BIS0001)
+#define GPIO_LED_DATA    9   // WS2812B RGB LED
+#define GPIO_BUTTON      10  // manueller Taster
+#define GPIO_SERVO       11  // Gigaline Standard Servo (Wasserhahn-Steuerung)
+#define GPIO_BATTERY_ADC 1   // ADC1_CH1 - Batteriespannungsmessung
+
+// ============================================================================
+// Katzenbrunnen Parameter
+// ============================================================================
+#define SERVO_OPEN_ANGLE_US     2000    // Servo-Position für geöffneten Wasserhahn (Pulsweite in µs)
+#define SERVO_CLOSE_ANGLE_US    1000    // Servo-Position für geschlossenen Wasserhahn (Pulsweite in µs)
+#define MOTION_TIMEOUT_MS       10000   // Timeout ohne Bewegung vor Schließen (ms)
+#define MIN_MOTION_DURATION_MS  2000    // Minimale Bewegungsdauer für Aktivierung (ms)
+#define PIR_COOLDOWN_MS         30000   // Cooldown nach Aktivierung (ms)
+
+// ============================================================================
+// Batterie-Konfiguration (LiPo 2S2P, 3.7V, 4Ah)
+// ============================================================================
+#define BATTERY_CELLS          2       // Anzahl Zellen (parallel: 2S2P = 2 Zellen parallel)
+#define BATTERY_CAPACITY_AH     4.0     // Kapazität in Ah
+#define BATTERY_VOLTAGE_MIN     3.0     // Minimale Zellspannung (V) - Abschaltung
+#define BATTERY_VOLTAGE_MAX     4.2     // Maximale Zellspannung (V) - voll geladen
+#define BATTERY_VOLTAGE_NOMINAL 3.7     // Nominale Zellspannung (V)
+#define ADC_ATTENUATION        ADC_ATTEN_DB_11  // ADC Dämpfung für 0-3.3V Messbereich
+#define ADC_UNIT               ADC_UNIT_1
+#define ADC_CHANNEL            ADC_CHANNEL_1
+#define BATTERY_DIVIDER_R1     10000   // Spannungsteiler R1 (Ohm)
+#define BATTERY_DIVIDER_R2     10000   // Spannungsteiler R2 (Ohm)
+
+// ============================================================================
+// Servo Configuration - Gigaline Standard Servo
+// ============================================================================
+// Abmessungen: 39.7mm x 20.37mm x 36.12mm (h)
+// Typ: Standard-Servo (Futaba S3003 kompatibel)
+// Gewicht: ~37g (basierend auf S3003 Vergleich)
+// Getriebe: Metallgetriebe (MG - Metal Gear)
+// Lagerung: Kugellager (BB - Ball Bearing)
+// Betriebsspannung: 4.8-6.0V
+// Drehmoment: ~3.0kg/cm bei 4.8V, ~3.7kg/cm bei 6.0V (geschätzt)
+// Geschwindigkeit: ~0.19s/60° bei 4.8V (geschätzt)
+// Verdrehung: ~180°
+#define SERVO_MIN_PULSE_US   500    // Minimale Pulsweite (0.5ms)
+#define SERVO_MAX_PULSE_US   2400   // Maximale Pulsweite (2.4ms)
+#define SERVO_NEUTRAL_US     1500   // Neutralposition (1.5ms)
+#define SERO_FREQUENCY_HZ    50     // PWM Frequenz (50Hz = 20ms Periode)
+#define SERVO_VOLTAGE_MIN    4.8    // Minimale Betriebsspannung (V)
+#define SERVO_VOLTAGE_MAX    6.0    // Maximale Betriebsspannung (V)
+#define SERVO_TORQUE_4V8     3.0    // Drehmoment bei 4.8V (kg/cm)
+#define SERVO_TORQUE_6V      3.7    // Drehmoment bei 6.0V (kg/cm)
+#define SERVO_SPEED_4V8      0.19   // Geschwindigkeit bei 4.8V (s/60°)
+#define SERO_WEIGHT_G       37     // Gewicht (Gramm)
+
+// ============================================================================
+// PIR Sensor Configuration - BIS0001 PIR Motion Detector
+// ============================================================================
+// Modul: Elegoo 37-in-1 Sensor Kit PIR Modul
+// Chip: BIS0001 (Micro Power PIR Motion Detector IC)
+// Abmessungen: 24mm x 33mm
+// Anschlüsse: GND, VCC, OUT
+// Betriebsspannung: 3.3V - 5.0V
+// Stromaufnahme: ~10mA bei 5V
+// Betriebstemperatur: -20°C bis +70°C
+// Erfassungsbereich: bis 6m (20 feet)
+// Erfassungswinkel: 110° x 70°
+// Ausgang: Digital (HIGH bei Bewegung, LOW im Ruhezustand)
+// Verzögerungszeit: einstellbar via Potentiometer
+// Trigger-Modus: Repeatable/Non-repeatable (jumper-selectable)
+#define PIR_VOLTAGE_MIN      3.3    // Minimale Betriebsspannung (V)
+#define PIR_VOLTAGE_MAX      5.0    // Maximale Betriebsspannung (V)
+#define PIR_CURRENT_MA       10     // Stromaufnahme bei 5V (mA)
+#define PIR_DETECTION_RANGE_M 6.0   // Maximale Erfassungsreichweite (m)
+#define PIR_DETECTION_ANGLE_H 110   // Horizontaler Erfassungswinkel (Grad)
+#define PIR_DETECTION_ANGLE_V 70    // Vertikaler Erfassungswinkel (Grad)
+#define PIR_OUTPUT_HIGH     3.0    // Ausgangsspannung HIGH (V)
 
 // ============================================================================
 // FreeRTOS Configuration
@@ -18,17 +89,94 @@
 // CONFIG_APP_PRIORITY   = Task priority (0-24, higher = more important)
 // CONFIG_APP_CORE       = Core affinity (0, 1, or tskNO_AFFINITY)
 
+// Task Stack Sizes
+#define TASK_STACK_PIR          4096    // PIR-Task Stack
+#define TASK_STACK_SERVO        4096    // Servo-Task Stack
+#define TASK_STACK_WEB          8192    // Web-Server-Task Stack
+#define TASK_STACK_WIFI         4096    // WiFi-Task Stack
+#define TASK_STACK_OTA          8192    // OTA-Task Stack
+#define TASK_STACK_BATTERY      3072    // Battery-Monitor-Task Stack
+
+// Task Priorities (0-24, higher = more important)
+#define TASK_PRIO_PIR           5       // PIR-Task Priorität
+#define TASK_PRIO_SERVO         4       // Servo-Task Priorität
+#define TASK_PRIO_WEB           3       // Web-Server-Task Priorität
+#define TASK_PRIO_WIFI          2       // WiFi-Task Priorität
+#define TASK_PRIO_OTA           1       // OTA-Task Priorität
+#define TASK_PRIO_BATTERY       2       // Battery-Monitor-Task Priorität
+
+// Task Core Affinity
+#define TASK_CORE_CONTROL        0       // Core 0 für Steuerungsaufgaben
+#define TASK_CORE_NETWORK       1       // Core 1 für Netzwerkaufgaben
+
+// ============================================================================
+// WiFi Configuration
+// ============================================================================
+#define WIFI_SSID_MAX_LEN       32
+#define WIFI_PASSWORD_MAX_LEN   64
+#define WIFI_RETRY_INTERVAL_MS  5000    // WiFi Verbindungsretry Intervall
+#define WIFI_MAX_RETRIES         10      // Maximale Verbindungsversuche
+#define WIFI_AP_SSID            "katzenbrunnen_setup"
+#define WIFI_AP_PASSWORD        "katzen123"
+
+// ============================================================================
+// Web Server Configuration
+// ============================================================================
+#define WEB_SERVER_PORT         80
+#define MAX_EVENT_LOG_ENTRIES   50      // Maximale Einträge im Event-Log
+#define MAX_OPEN_TIME_ENTRIES   50      // Maximale Einträge im Öffnungszeit-Log
+
+// ============================================================================
+// OTA Configuration
+// ============================================================================
+#define OTA_URL_MAX_LEN         256
+#define OTA_TIMEOUT_MS          30000   // OTA Timeout
+#define OTA_HEALTH_CHECK_DELAY_MS 60000  // Health-Check nach OTA (60s)
+
+// ============================================================================
+// Power Management Configuration
+// ============================================================================
+#define WIFI_SLEEP_START_HOUR   22      // WiFi Sleep Start (Uhrzeit)
+#define WIFI_SLEEP_END_HOUR     6       // WiFi Sleep Ende (Uhrzeit)
+#define DEEP_SLEEP_INACTIVITY_MS 300000 // Deep Sleep nach Inaktivität (5 min)
+#define BATTERY_CRITICAL_VOLTAGE 3.2    // Kritische Spannung pro Zelle (V)
+
+// ============================================================================
+// Stack Monitoring Configuration
+// ============================================================================
+#define STACK_WARNING_PERCENT    60      // Warnung bei >60% Stack-Nutzung
+#define STACK_CRITICAL_PERCENT   80      // Kritisch bei >80% Stack-Nutzung
+#define STACK_MONITOR_INTERVAL_MS 10000  // Stack-Überwachung alle 10 Sekunden
+
+// ============================================================================
+// Watchdog Configuration
+// ============================================================================
+#define TWDT_TIMEOUT_MS         5000    // Watchdog Timeout (5 Sekunden)
+#define TWDT_TASK_STACK_SIZE    2048    // Watchdog Task Stack
+#define SERVO_EMERGENCY_CLOSE   true    // Servo bei Watchdog-Trigger schließen
+
+// ============================================================================
+// Error Logging Configuration
+// ============================================================================
+#define ERROR_LOG_MAX_ENTRIES   100     // Maximale Fehler-Log-Einträge
+#define ERROR_CODE_LENGTH       8       // Länge des Fehlercodes (z.B. "E0012345")
+
 // ============================================================================
 // NVS Configuration
 // ============================================================================
 #define NVS_NAMESPACE "katzenbrunnen"
 #define NVS_STORE_NAME "config"
+#define NVS_ACTIVATION_COUNT_KEY "activation_cycles"
+#define NVS_LAST_TRIGGER_KEY "last_trigger"
 
 // ============================================================================
 // Application Defaults
 // ============================================================================
+#define APP_VERSION_MAJOR 0
+#define APP_VERSION_MINOR 1
 #define APP_VERSION "0.1.0"
 #define APP_LOGLEVEL CONFIG_APP_LOGLEVEL  // From sdkconfig
+#define APP_NAME "Katzenbrunnen"
 
 // ============================================================================
 // Security Configuration (optional)

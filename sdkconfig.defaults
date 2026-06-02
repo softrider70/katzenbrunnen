@@ -1,53 +1,19 @@
-# Board-agnostic ESP-IDF configuration defaults
-# These settings apply to all boards unless overridden in board-specific files
+# ESP32-S3 (Dual-core, 512KB SRAM, PSRAM, dual USB)
+# This file extends sdkconfig.defaults with ESP32-S3-specific settings
 
-# ============================================================================
-# Project Configuration
-# ============================================================================
-CONFIG_PROJECT_NAME="${PROJECT_NAME}"
-CONFIG_PROJECT_VER="0.1.0"
+CONFIG_IDF_TARGET="esp32s3"
 
-# ============================================================================
-# Application Stack & Task Configuration
-# ============================================================================
-CONFIG_APP_STACK_SIZE=4096
-CONFIG_APP_PRIORITY=5
-CONFIG_APP_LOGLEVEL=3
-
-# ============================================================================
-# FreeRTOS Configuration
-# ============================================================================
+# ESP32-S3 has dual cores, no need for FREERTOS_NO_AFFINITY
 CONFIG_FREERTOS_UNICORE=n
-CONFIG_FREERTOS_RUN_TIME_STATS_USING_ESP_TIMER=y
-CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y
 
-# ============================================================================
-# Logging
-# ============================================================================
-CONFIG_LOG_DEFAULT_LEVEL=3
-CONFIG_LOG_MAXIMUM_LEVEL=5
-CONFIG_LOG_BOOTLOADER_LEVEL=3
-
-# ============================================================================
-# NVS (Non-Volatile Storage)
-# ============================================================================
-CONFIG_NVS_ENCRYPTION_KEY_SIZE=24
-
-# ============================================================================
-# Startup Configuration
-# ============================================================================
-CONFIG_ESP_CONSOLE_UART_NUM=0
-CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
-
-# ============================================================================
-# Memory Configuration
-# ============================================================================
+# S3 has built-in PSRAM (8MB typical)
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_QUAD=y
 CONFIG_SPIRAM_USE=y
-CONFIG_SPIRAM_USE_MALLOC=y
 
-# ============================================================================
-# Security (Optional - uncomment for production)
-# ============================================================================
-# CONFIG_SECURE_BOOT_ENABLED=y
-# CONFIG_SECURE_BOOT_V2_ENABLED=y
-# CONFIG_SECURE_FLASH_ENC_ENABLED=y
+# S3-specific performance
+CONFIG_ESP32S3_DEFAULT_CPU_FREQ_160=y
+
+# USB support (optional)
+# CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_USB_CDC=y

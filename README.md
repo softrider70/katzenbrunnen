@@ -1,87 +1,223 @@
-# katzenbrunnen — ESP32 Project
+# katzenbrunnen — ESP32-S3 Projekt
 
-A custom ESP32 project built with native ESP-IDF.
+Automatischer Katzenbrunnen mit ESP32-S3 Mikrocontroller für intelligente Steuerung an der Badewannenarmatur.
 
-## Overview
+## Übersicht
 
-TODO: Add project description here
+Automatischer Katzenbrunnen für Katzen zur Selbstversorgung mit Wasser. Das System wird an der Badewannenarmatur installiert und ermöglicht es den Tieren, sich selbst Wasser zu trinken.
 
-- **Board:** See `sdkconfig` for target configuration
-- **Version:** See `PROJECT.md` for detailed specs
-- **Status:** In development
+**Funktionen:**
+- **Bewegungserkennung** beim Betreten der Badewanne (PIR-Sensor)
+- **Automatische Wasserhahn-Steuerung** via Servo
+- **Intelligente Trigger-Logik:** Wasser fließt nur bei anhaltender Bewegung
+- **Timeout-Schutz:** Automatisches Schließen nach definierter Zeit
+- **Manuelle Steuerung** über Taster
+- **Statusanzeige** mit RGB LED
+- **Persistente Datenspeicherung** der Aktivierungszykler
+- **Web-UI** mit tabellarischer Anzeige von Bewegungen und Öffnungszeiten
+- **Spannungsüberwachung** für LiPo-Batterie (2S2P, 3.7V, 4Ah)
+- **OTA-Updates** für Firmware-Austausch über WLAN
+- **Stromspar-Modi** für batteriebetriebenen Betrieb
 
-## Quick Start
+**FreeRTOS Task-Architektur:**
+- **PIR-Task (Core 0):** Bewegungserkennung und Trigger-Logik
+- **Servo-Task (Core 0):** Wasserhahn-Steuerung
+- **Web-Server-Task (Core 1):** HTTP-Handler und API-Endpunkte
+- **WiFi-Task (Core 1):** WLAN-Verbindungsmanagement
+- **OTA-Task (Core 1):** Firmware-Update-Management
+- **Spannungs-Monitor-Task (Core 0):** Batterieüberwachung
 
-### Build
-```bash
-idf.py build
+- **Board:** ESP32-S3 (Dual-Core, 512KB SRAM, PSRAM)
+- **Version:** 0.1.0
+- **Status:** Entwicklungsphase
+
+## Hardware-Anschluss
+
+### ESP32-S3 Pin-Belegung:
+```
+GPIO6  → PIR Bewegungssensor (Digital)
+GPIO9  → WS2812B RGB LED Data
+GPIO10  → manueller Taster (mit Pull-up)
+GPIO11  → Gigaline Standard Servo (PWM) - Wasserhahn-Steuerung
+GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 ```
 
-### Flash (First Time)
-```bash
-/initial-upload
-```
+### Benötigte Komponenten:
+- ESP32-S3 Entwicklungsboard
+- **PIR Bewegungssensor BIS0001** (Elegoo 37-in-1 Kit, 24mm × 33mm)
+- **Gigaline Standard Servo** (39.7mm × 20.37mm × 36.12mm) - Wasserhahn-Mechanik
+- WS2812B RGB LED
+- Taster
+- Mechanische Verbindung Servo → Wasserhahn-Griff
+- **LiPo-Batterie** 2S2P (3.7V, 4Ah) mit Spannungsteiler für ADC
 
-### Flash (Iteration)
-```bash
-/upload-firmware
-```
+## Funktionsweise
 
-### Monitor
-```bash
-idf.py monitor
-```
+### Automatischer Betrieb:
+1. **PIR-Sensor** erkennt Katze beim Betreten der Badewanne
+2. **Erfassungszeit:** Nach initialer Bewegungserkennung wird kurze Verzögerung gewartet
+3. **Servo** öffnet Wasserhahn bis zum eingestellten Winkel
+4. **Wasser fließt** solange der PIR-Sensor Bewegung feststellt
+5. **Timeout-Schutz:** Nach definierter Zeit ohne Bewegung schließt der Servo automatisch
+6. **Aktivierungszykler** werden in NVS gespeichert
+
+### Manuel Betrieb:
+- **Taster** löst sofortige Wasserhahn-Öffnung aus
+- **Servo** steuert Wasserhahn-Position
+- **Status-LED** zeigt Betriebszustand an
+- **Logging** über Serial Monitor
+
+### Web-UI:
+- **Tabelle** mit Bewegungsereignissen (Zeitstempel, Dauer)
+- **Tabelle** mit Öffnungszeiten (Start, Ende, Dauer)
+- **Spannungsanzeige** (Aktuelle Spannung, Prozent, Status)
+- **OTA-Steuerbereich** für Firmware-Updates
+- **WiFi-Konfiguration** für Netzwerk-Setup
+
+### Stromspar-Modi:
+- **WiFi Sleep:** WLAN deaktivieren wenn nicht benötigt
+- **Deep Sleep:** System in Schlafmodus bei Inaktivität
+- **Spannungsüberwachung:** Abschaltung bei kritischer Batteriespannung
 
 ## Project Structure
 
 ```
 katzenbrunnen/
 ├── src/
-│   ├── main.c              Main application code
+│   ├── main.c              Main application entry point
+│   ├── pir.c               PIR-Sensor Modul (Bewegungserkennung)
+│   ├── servo.c             Servo-Steuerung Modul (Wasserhahn)
+│   ├── battery.c           Batterie-Monitor Modul (Spannungsmessung)
+│   ├── error_log.c         Fehler-Logging Modul
+│   ├── stack_monitor.c     Stack-Überwachungs Modul
+│   ├── watchdog.c          Watchdog Modul
+│   ├── wifi.c              WiFi-Management Modul
+│   ├── web_server.c        Web-Server Modul (HTTP-Handler)
+│   ├── ota.c               OTA-Update Modul
+│   ├── power_mgmt.c        Power-Management Modul (Stromspar)
 │   └── CMakeLists.txt      Component build config
 ├── include/
-│   └── config.h            Hardware configuration (pins, settings)
+│   ├── config.h            Hardware-Konfiguration (Pins, Parameter)
+│   ├── pir.h               PIR-Sensor Header
+│   ├── servo.h             Servo-Steuerung Header
+│   ├── battery.h           Batterie-Monitor Header
+│   ├── error_log.h         Fehler-Logging Header
+│   ├── stack_monitor.h     Stack-Überwachung Header
+│   ├── watchdog.h          Watchdog Header
+│   ├── wifi.h              WiFi-Management Header
+│   ├── web_server.h        Web-Server Header
+│   ├── ota.h               OTA-Update Header
+│   └── power_mgmt.h        Power-Management Header
 ├── CMakeLists.txt          Project build config
 ├── sdkconfig               Build configuration (auto-generated)
-├── PROJECT.md              Detailed project specs
 └── README.md               This file
 ```
 
-## Configuration
+## Code-Struktur und Modularisierung
 
-### Hardware Setup
+**WICHTIG:** Das gesamte Projekt darf nicht in einer einzigen main.c-Datei zusammengefasst werden. Der Code muss in sinnvolle, modulare Komponenten aufgeteilt werden:
 
-Edit `include/config.h` to configure:
-- GPIO pin assignments
-- UART baudrates
-- WiFi/BLE settings
-- Display configurations
-- Sensor parameters
+**Modul-Struktur:**
+- **pir.c/h:** PIR-Sensor Initialisierung, ISR-Handler, Bewegungserkennungslogik
+- **servo.c/h:** Servo PWM-Initialisierung, Positionskontrolle, Wasserhahn-Steuerung
+- **battery.c/h:** ADC-Initialisierung, Spannungsmessung, Prozentberechnung
+- **error_log.c/h:** Fehler-Logging mit Ringbuffer, Fehlercode-Generierung
+- **stack_monitor.c/h:** Stack-Überwachung für alle Tasks, Warnung bei >60%
+- **watchdog.c/h:** ESP32 Task Watchdog, Emergency-Close bei Trigger
+- **wifi.c/h:** WiFi-Verbindungsmanagement, AP-Mode, Credential-Handling
+- **web_server.c/h:** HTTP-Server, API-Endpunkte, HTML/JSON-Generierung
+- **ota.c/h:** OTA-Update-Logik, Health-Check, Rollback
+- **power_mgmt.c/h:** WiFi Sleep, Deep Sleep, Batterie-Schutz
+
+**Regeln:**
+- Jedes Modul hat eigene .c und .h Dateien
+- Header-Dateien enthalten nur öffentliche APIs und Konstanten
+- Interne Funktionen bleiben in .c Dateien
+- Globale Variablen werden minimiert und durch Getter/Setter ersetzt
+- Thread-Sicherheit über Semaphores/Mutexes pro Modul
+
+## Quick Start
+
+### Build
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-and-commit.ps1
+```
+
+**Automatische Schritte:**
+1. Build-Nummer inkrementieren (`tools/increment_build.py`)
+2. `include/version.h` generieren
+3. ESP-IDF Build ausführen (`idf.py build`)
+4. Commit mit Buildnummer im Commit-Text
+5. Build-Metadaten automatisch committen
+6. Push zum Remote Repository
+
+### Flash
+```powershell
+# USB Flash (auto-detect Port und Flash-Typ)
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\flash-mode.ps1 -Mode usb
+
+# USB Flash mit spezifischem Port
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\flash-mode.ps1 -Mode usb -UsbPort COM3
+
+# Letzten verwendeten Modus
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\flash-mode.ps1 -Mode last
+```
+
+**Flash-Modi:**
+- **initial:** Bootloader + Partition Table + App (erstes Mal)
+- **update:** Nur App (schnelle Updates)
+- **auto:** Automatische Erkennung
+
+### Monitor
+```bash
+idf.py -p COM3 monitor
+```
+
+## Konfiguration
+
+Die wichtigsten Parameter können in `include/config.h` angepasst werden:
+```c
+#define PUMP_ACTIVE_TIME_MS   10000    // Pumpenlaufzeit
+#define MIN_FILL_LEVEL_CM     5.0       // Minimaler Füllstand
+#define MAX_FILL_LEVEL_CM     30.0      // Maximaler Füllstand
+#define PIR_COOLDOWN_MS       30000     // PIR Cooldown
+// Servo-Einstellungen
+#define SERVO_MIN_PULSE_US   500       // Minimale Pulsweite
+#define SERVO_MAX_PULSE_US   2400      // Maximale Pulsweite
+#define SERVO_NEUTRAL_US     1500      // Neutralposition
+#define SERO_FREQUENCY_HZ    50        // PWM Frequenz
+```
 
 ### Board Selection
 
-The target board is configured in `sdkconfig` and `sdkconfig.defaults.*`
-
-To change boards:
+Das ESP32-S3 Target ist bereits konfiguriert in `sdkconfig.defaults`:
 ```bash
-idf.py set-target esp32s3
-idf.py menuconfig
+# Überprüfen:
+idf.py --help | grep esp32s3
 ```
 
 ## Development Workflow
 
 1. **Edit code** in `src/main.c` or `include/config.h`
-2. **Build:** `/build-project`
-3. **Flash:** `/upload-firmware` (fast iteration)
-4. **Test & Debug**
-5. **Commit:** `/commit` (auto-generates commit message)
+2. **Build:** `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-and-commit.ps1`
+3. **Flash:** `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\flash-mode.ps1 -Mode last`
+4. **Test & Debug:** `idf.py -p COM3 monitor`
+5. **Commit:** Automatisch durch build-and-commit.ps1
 
-## Useful Skills
+## Entwickler-Tools
 
-- **`/build-project`** — Compile firmware
-- **`/upload-firmware`** — Fast app update (~3 seconds)
-- **`/upload`** — Smart session router
-- **`/commit`** — Git commit with auto-message
+- **`tools/build-and-commit.ps1`** — Build mit automatischer Buildnummer-Inkrementierung und Commit
+- **`tools/flash-mode.ps1`** — USB/OTA Flash-Workflow mit Auto-Detection
+- **`tools/increment_build.py`** — Buildnummer-Generierung und version.h-Erzeugung
+- **`activate-esp-idf.ps1`** — ESP-IDF Umgebung aktivieren
+
+## Versionierung
+
+Die Versionierung folgt dem Schema **MAJOR.MINOR.BUILD**:
+- **MAJOR/MINOR** werden in `include/config.h` definiert (`APP_VERSION_MAJOR`, `APP_VERSION_MINOR`)
+- **BUILD** wird automatisch bei jedem Build inkrementiert
+- Bei Änderung von MAJOR oder MINOR wird BUILD auf 0 zurückgesetzt
+- `include/version.h` wird automatisch generiert
 
 ## Adding Features
 

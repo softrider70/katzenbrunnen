@@ -31,9 +31,6 @@ static const char *TAG = "katzenbrunnen";
 // NVS handle für persistenten Speicher
 nvs_handle_t g_nvs_handle;
 
-// WiFi Sleep Status
-static bool wifi_sleep_active = false;
-
 // SNTP Zeit-Synchronisation
 static void time_sync_notification_cb(struct timeval *tv)
 {
@@ -288,14 +285,45 @@ static void control_task(void *pvParameters)
         if (!valve_open && now >= cooldown_until) {
             uint64_t inactivity_ms = (now - last_any_motion) / 1000ULL;
             if (inactivity_ms >= POWER_DEEP_SLEEP_TIMEOUT_MS) {
-                ESP_LOGI(TAG, "Inaktivität >= %d ms -> Deep Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
-                ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
+                // Prüfen ob nachts (Deep Sleep) oder tagsüber (Light Sleep)
+                time_t now_sec = time(NULL);
+                struct tm *tm_info = localtime(&now_sec);
+                int current_hour = tm_info->tm_hour;
 
-                // Watchdog deaktivieren vor Deep Sleep
-                watchdog_stop();
+                bool is_night = false;
+                if (WIFI_SLEEP_START_HOUR > WIFI_SLEEP_END_HOUR) {
+                    // Sleep-Fenster über Mitternacht (z.B. 22:00 - 06:00)
+                    is_night = (current_hour >= WIFI_SLEEP_START_HOUR || current_hour < WIFI_SLEEP_END_HOUR);
+                } else {
+                    // Sleep-Fenster innerhalb eines Tages (z.B. 02:00 - 06:00)
+                    is_night = (current_hour >= WIFI_SLEEP_START_HOUR && current_hour < WIFI_SLEEP_END_HOUR);
+                }
 
-                // Deep Sleep aktivieren
-                esp_deep_sleep_start();
+                if (is_night) {
+                    ESP_LOGI(TAG, "Inaktivität >= %d ms (Nacht) -> Deep Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
+                    ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
+
+                    // Watchdog deaktivieren vor Deep Sleep
+                    watchdog_stop();
+
+                    // Deep Sleep aktivieren
+                    esp_deep_sleep_start();
+                } else {
+                    ESP_LOGI(TAG, "Inaktivität >= %d ms (Tag) -> Light Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
+                    ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
+
+                    // Watchdog deaktivieren vor Light Sleep
+                    watchdog_stop();
+
+                    // Light Sleep mit GPIO Wake-Up konfigurieren
+                    esp_sleep_enable_gpio_wakeup(
+                        BIT(POWER_DEEP_SLEEP_WAKEUP_GPIO),
+                        POWER_DEEP_SLEEP_WAKEUP_LEVEL ? ESP_GPIO_WAKEUP_GPIO_HIGH : ESP_GPIO_WAKEUP_GPIO_LOW
+                    );
+
+                    // Light Sleep aktivieren
+                    esp_light_sleep_start();
+                }
             }
         }
 #endif
@@ -312,30 +340,6 @@ static void control_task(void *pvParameters)
 
             // Deep Sleep aktivieren (nur durch Reset aufweckbar)
             esp_deep_sleep_start();
-        }
-
-        // WiFi Sleep Prüfung (basierend auf Uhrzeit)
-        time_t now_sec = time(NULL);
-        struct tm *tm_info = localtime(&now_sec);
-        int current_hour = tm_info->tm_hour;
-
-        bool should_sleep = false;
-        if (WIFI_SLEEP_START_HOUR > WIFI_SLEEP_END_HOUR) {
-            // Sleep-Fenster über Mitternacht (z.B. 22:00 - 06:00)
-            should_sleep = (current_hour >= WIFI_SLEEP_START_HOUR || current_hour < WIFI_SLEEP_END_HOUR);
-        } else {
-            // Sleep-Fenster innerhalb eines Tages (z.B. 02:00 - 06:00)
-            should_sleep = (current_hour >= WIFI_SLEEP_START_HOUR && current_hour < WIFI_SLEEP_END_HOUR);
-        }
-
-        if (should_sleep && !wifi_sleep_active) {
-            ESP_LOGI(TAG, "WiFi Sleep aktivieren (%d:00 - %d:00)", WIFI_SLEEP_START_HOUR, WIFI_SLEEP_END_HOUR);
-            wifi_set_sleep(true);
-            wifi_sleep_active = true;
-        } else if (!should_sleep && wifi_sleep_active) {
-            ESP_LOGI(TAG, "WiFi Sleep deaktivieren");
-            wifi_set_sleep(false);
-            wifi_sleep_active = false;
         }
 
         watchdog_feed();

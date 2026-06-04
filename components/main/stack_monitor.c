@@ -25,7 +25,7 @@ esp_err_t stack_monitor_init(void)
     memset(stack_info, 0, sizeof(stack_info));
     stack_info_count = 0;
     
-    ESP_LOGI(TAG, "Stack-Monitor initialisiert");
+    ESP_LOGI(TAG, "Stack-Monitor initialisiert (ESP-IDF 6.1 kompatibel)");
     return ESP_OK;
 }
 
@@ -33,45 +33,37 @@ static void update_stack_info(void)
 {
     xSemaphoreTake(stack_mutex, portMAX_DELAY);
     
-    // Task-Liste abrufen
-    UBaseType_t task_count = uxTaskGetNumberOfTasks();
-    TaskStatus_t *task_status_array = pvPortMalloc(task_count * sizeof(TaskStatus_t));
+    // Vereinfachte Stack-Überwachung für ESP-IDF 6.1 (uxTaskGetSystemState nicht verfügbar)
+    // Nur HighWaterMark für bekannte Tasks überwachen
+    const char *known_tasks[] = {"katzenbrunnen", "control_task", "app_task", "wifi_task", "ota_task", "httpd"};
+    stack_info_count = 0;
     
-    if (task_status_array != NULL) {
-        task_count = uxTaskGetSystemState(task_status_array, task_count, NULL);
-        
-        stack_info_count = (task_count < 16) ? task_count : 16;
-        
-        for (UBaseType_t i = 0; i < stack_info_count; i++) {
-            strncpy(stack_info[i].task_name, task_status_array[i].pcTaskName, sizeof(stack_info[i].task_name) - 1);
-            stack_info[i].task_name[sizeof(stack_info[i].task_name) - 1] = '\0';
+    for (size_t i = 0; i < sizeof(known_tasks) / sizeof(known_tasks[0]); i++) {
+        TaskHandle_t task = xTaskGetHandle(known_tasks[i]);
+        if (task != NULL) {
+            UBaseType_t high_water_mark = uxTaskGetStackHighWaterMark(task);
+            uint32_t free_bytes = high_water_mark * sizeof(StackType_t);
             
-            stack_info[i].stack_size = task_status_array[i].usStackHighWaterMark;
-            stack_info[i].stack_free = task_status_array[i].usStackHighWaterMark;
+            strncpy(stack_info[stack_info_count].task_name, known_tasks[i], sizeof(stack_info[stack_info_count].task_name) - 1);
+            stack_info[stack_info_count].task_name[sizeof(stack_info[stack_info_count].task_name) - 1] = '\0';
+            stack_info[stack_info_count].stack_free = free_bytes;
+            stack_info[stack_info_count].stack_size = 0;  // Nicht ermittelbar ohne uxTaskGetSystemState
+            stack_info[stack_info_count].stack_percent = 0;
             
-            // Stack-Nutzung in Prozent berechnen
-            uint32_t total_stack = task_status_array[i].uxTaskStackSize;
-            if (total_stack > 0) {
-                stack_info[i].stack_percent = (uint8_t)(((total_stack - stack_info[i].stack_free) * 100) / total_stack);
-            } else {
-                stack_info[i].stack_percent = 0;
+            // Warnung/Kritisch anhand absolutem freiem Stack-Reservepuffer
+            stack_info[stack_info_count].warning  = (free_bytes < STACK_FREE_WARNING_BYTES);
+            stack_info[stack_info_count].critical = (free_bytes < STACK_FREE_CRITICAL_BYTES);
+            
+            // Fehler loggen bei niedrigem freiem Stack
+            if (stack_info[stack_info_count].critical) {
+                error_log_add(ERR_STACK_OVERFLOW, stack_info[stack_info_count].task_name, 3);
+            } else if (stack_info[stack_info_count].warning) {
+                error_log_add(ERR_STACK_OVERFLOW, stack_info[stack_info_count].task_name, 1);
             }
             
-            stack_info[i].warning = (stack_info[i].stack_percent > STACK_WARNING_PERCENT);
-            stack_info[i].critical = (stack_info[i].stack_percent > STACK_CRITICAL_PERCENT);
-            
-            // Fehler loggen bei kritischer Stack-Nutzung
-            if (stack_info[i].critical) {
-                error_log_add(ERR_STACK_OVERFLOW, stack_info[i].task_name, 3);
-            } else if (stack_info[i].warning) {
-                error_log_add(ERR_STACK_OVERFLOW, stack_info[i].task_name, 1);
-            }
+            stack_info_count++;
+            if (stack_info_count >= 16) break;
         }
-        
-        vPortFree(task_status_array);
-    } else {
-        ESP_LOGE(TAG, "Memory Allocation fehlgeschlagen für Stack-Monitor");
-        error_log_add(ERR_MEMORY_ALLOC, "stack_monitor", 2);
     }
     
     xSemaphoreGive(stack_mutex);

@@ -1,0 +1,18 @@
+# Build-Artefakte
+build/
+build_*/
+
+# IDE-Konfiguration
+.vscode/
+.devin/
+
+# ESP-IDF
+sdkconfig
+sdkconfig.old
+
+# Build-Metadaten
+.last_version
+
+# OS-Dateien
+.DS_Store
+Thumbs.db

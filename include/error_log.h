@@ -3,7 +3,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <inttypes.h>
 #include "esp_err.h"
+#include "config.h"
 
 // Fehlercode-Definitionen
 #define ERR_STACK_OVERFLOW      0x01

@@ -1,9 +1,11 @@
 #include <stdio.h>
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/timers.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_chip_info.h"
 #include "driver/gpio.h"
 #include "esp_timer.h"
 #include "nvs_flash.h"
@@ -15,18 +17,19 @@
 #include "error_log.h"
 #include "stack_monitor.h"
 #include "watchdog.h"
+#include "wifi.h"
+#include "web_server.h"
+#include "ota.h"
 
 static const char *TAG = "katzenbrunnen";
 
 // NVS handle für persistenten Speicher
-nvs_handle_t nvs_handle;
+nvs_handle_t g_nvs_handle;
 
-// Status-Variablen
-static bool water_flow_active = false;
+// Status-Variablen (einzige Wahrheit für "Ventil offen" ist das servo-Modul)
 static uint32_t activation_count = 0;
-static uint64_t last_motion_time = 0;
 
-// Synchronisation
+// Synchronisation (schützt activation_count)
 static SemaphoreHandle_t state_mutex = NULL;
 
 /**
@@ -74,6 +77,15 @@ static esp_err_t init_hardware(void)
     ret = watchdog_init();
     if (ret != ESP_OK) return ret;
     
+    ret = wifi_init();
+    if (ret != ESP_OK) return ret;
+    
+    ret = web_server_init();
+    if (ret != ESP_OK) return ret;
+    
+    ret = ota_init();
+    if (ret != ESP_OK) return ret;
+    
     ESP_LOGI(TAG, "Hardware initialisiert");
     return ESP_OK;
 }
@@ -91,14 +103,14 @@ static esp_err_t init_nvs(void)
     }
     ESP_ERROR_CHECK(ret);
     
-    ret = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    ret = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &g_nvs_handle);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to open NVS handle: %s", esp_err_to_name(ret));
         return ret;
     }
     
     // Aktivierungszykler aus NVS laden
-    ret = nvs_get_u32(nvs_handle, NVS_ACTIVATION_COUNT_KEY, &activation_count);
+    ret = nvs_get_u32(g_nvs_handle, NVS_ACTIVATION_COUNT_KEY, &activation_count);
     if (ret != ESP_OK) {
         activation_count = 0;
         ESP_LOGI(TAG, "Keine Aktivierungszykler gefunden, starte bei 0");
@@ -114,9 +126,9 @@ static esp_err_t init_nvs(void)
  */
 static void save_activation_count(void)
 {
-    esp_err_t ret = nvs_set_u32(nvs_handle, NVS_ACTIVATION_COUNT_KEY, activation_count);
+    esp_err_t ret = nvs_set_u32(g_nvs_handle, NVS_ACTIVATION_COUNT_KEY, activation_count);
     if (ret == ESP_OK) {
-        nvs_commit(nvs_handle);
+        nvs_commit(g_nvs_handle);
         ESP_LOGI(TAG, "Aktivierungszykler gespeichert: %lu", activation_count);
     } else {
         ESP_LOGE(TAG, "Fehler beim Speichern der Aktivierungszykler");
@@ -124,27 +136,23 @@ static void save_activation_count(void)
 }
 
 /**
- * @brief Wasserhahn öffnen
+ * @brief Wasserhahn öffnen (Ventil-Zustand wird vom servo-Modul gehalten)
  */
 static void open_water_valve(void)
 {
-    xSemaphoreTake(state_mutex, portMAX_DELAY);
-    
-    if (water_flow_active) {
-        xSemaphoreGive(state_mutex);
+    if (servo_is_valve_open()) {
         ESP_LOGW(TAG, "Wasserhahn bereits geöffnet");
         return;
     }
     
-    water_flow_active = true;
-    activation_count++;
-    last_motion_time = esp_timer_get_time();
-    
-    xSemaphoreGive(state_mutex);
-    
-    ESP_LOGI(TAG, "Wasserhahn geöffnet (Zyklus %lu)", activation_count);
     servo_open_valve();
     
+    xSemaphoreTake(state_mutex, portMAX_DELAY);
+    activation_count++;
+    uint32_t count = activation_count;
+    xSemaphoreGive(state_mutex);
+    
+    ESP_LOGI(TAG, "Wasserhahn geöffnet (Zyklus %lu)", count);
     save_activation_count();
 }
 
@@ -153,62 +161,68 @@ static void open_water_valve(void)
  */
 static void close_water_valve(void)
 {
-    xSemaphoreTake(state_mutex, portMAX_DELAY);
-    
-    if (!water_flow_active) {
-        xSemaphoreGive(state_mutex);
+    if (!servo_is_valve_open()) {
         return;
     }
     
-    water_flow_active = false;
-    xSemaphoreGive(state_mutex);
-    
     servo_close_valve();
-    
     ESP_LOGI(TAG, "Wasserhahn geschlossen");
 }
 
 /**
- * @brief Steuerungs-Task - Wasserhahn-Logik
+ * @brief Steuerungs-Task - Wasserhahn-Logik (alleinige Entscheidungsinstanz)
+ *
+ * Ablauf:
+ *  - Geschlossen: bei durchgehender Bewegung >= MIN_MOTION_DURATION_MS öffnen,
+ *    sofern kein Cooldown aktiv ist.
+ *  - Offen: bei Bewegung Timeout zurücksetzen; nach MOTION_TIMEOUT_MS ohne
+ *    Bewegung schließen und Cooldown starten.
  */
 static void control_task(void *pvParameters)
 {
     ESP_LOGI(TAG, "Steuerungs-Task gestartet (Core %d)", xPortGetCoreID());
     
+    // Task beim Watchdog anmelden
+    watchdog_subscribe();
+    
+    // Task-lokale Zustände (nur in diesem Task verwendet -> kein Mutex nötig)
+    uint64_t motion_begin = 0;      // Beginn der aktuellen Bewegungsphase
+    uint64_t last_motion_open = 0;  // Letzte Bewegung während Ventil offen
+    uint64_t cooldown_until = 0;    // Zeitpunkt bis Cooldown aktiv ist
+    
     while (1) {
-        uint64_t current_time = esp_timer_get_time();
+        uint64_t now = esp_timer_get_time();
+        bool motion = pir_motion_detected();
+        bool valve_open = servo_is_valve_open();
         
-        xSemaphoreTake(state_mutex, portMAX_DELAY);
-        
-        // Prüfen ob minimale Bewegungsdauer erreicht und Wasserhahn öffnen
-        if (!water_flow_active && pir_motion_detected() && !pir_is_cooldown()) {
-            uint64_t last_motion = pir_get_last_motion_time();
-            uint64_t motion_duration = current_time - last_motion;
-            
-            if (motion_duration > (MIN_MOTION_DURATION_MS * 1000)) {
-                ESP_LOGI(TAG, "Minimale Bewegungsdauer erreicht (%llu ms)", motion_duration / 1000);
-                xSemaphoreGive(state_mutex);
-                open_water_valve();
-                xSemaphoreTake(state_mutex, portMAX_DELAY);
+        if (!valve_open) {
+            if (now < cooldown_until) {
+                // Cooldown läuft -> nicht öffnen
+                motion_begin = 0;
+            } else if (motion) {
+                if (motion_begin == 0) {
+                    motion_begin = now;  // Bewegungsphase beginnt
+                } else if ((now - motion_begin) >= (MIN_MOTION_DURATION_MS * 1000ULL)) {
+                    ESP_LOGI(TAG, "Bewegung >= %d ms -> Wasserhahn öffnen", MIN_MOTION_DURATION_MS);
+                    open_water_valve();
+                    last_motion_open = now;
+                    motion_begin = 0;
+                }
+            } else {
+                motion_begin = 0;  // Bewegung unterbrochen -> zurücksetzen
             }
-        }
-        
-        // Timeout ohne Bewegung - Wasserhahn schließen
-        if (water_flow_active) {
-            if (pir_motion_detected()) {
-                last_motion_time = current_time;
+        } else {
+            if (motion) {
+                last_motion_open = now;
             }
-            
-            uint64_t no_motion_duration = current_time - last_motion_time;
-            if (no_motion_duration > (MOTION_TIMEOUT_MS * 1000)) {
-                ESP_LOGI(TAG, "Timeout ohne Bewegung (%llu ms) - Wasserhahn schließen", no_motion_duration / 1000);
-                xSemaphoreGive(state_mutex);
+            if ((now - last_motion_open) >= (MOTION_TIMEOUT_MS * 1000ULL)) {
+                ESP_LOGI(TAG, "Timeout ohne Bewegung -> Wasserhahn schließen");
                 close_water_valve();
-                xSemaphoreTake(state_mutex, portMAX_DELAY);
+                cooldown_until = now + (PIR_COOLDOWN_MS * 1000ULL);
             }
         }
         
-        xSemaphoreGive(state_mutex);
+        watchdog_feed();
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
@@ -219,6 +233,9 @@ static void control_task(void *pvParameters)
 static void app_task(void *pvParameters)
 {
     ESP_LOGI(TAG, "Hauptanwendungs-Task gestartet (Core %d)", xPortGetCoreID());
+    
+    // Task beim Watchdog anmelden
+    watchdog_subscribe();
     
     while (1) {
         // Manueller Taster prüfen
@@ -239,19 +256,20 @@ static void app_task(void *pvParameters)
         static uint32_t last_status = 0;
         uint32_t current_tick = xTaskGetTickCount() * portTICK_PERIOD_MS;
         if (current_tick - last_status > 30000) {
+            bool valve_open = servo_is_valve_open();
             xSemaphoreTake(state_mutex, portMAX_DELAY);
-            bool flow_active = water_flow_active;
             uint32_t activations = activation_count;
             xSemaphoreGive(state_mutex);
             
             float batt_voltage = battery_get_voltage();
             uint8_t batt_percent = battery_get_percent();
             
-            ESP_LOGI(TAG, "Status - Wasserfluss: %s, Zykler: %lu, Batterie: %.2fV (%d%%)", 
-                     flow_active ? "AN" : "AUS", activations, batt_voltage, batt_percent);
+            ESP_LOGI(TAG, "Status - Wasserhahn: %s, Zykler: %lu, Batterie: %.2fV (%d%%)", 
+                     valve_open ? "OFFEN" : "ZU", activations, batt_voltage, batt_percent);
             last_status = current_tick;
         }
         
+        watchdog_feed();
         vTaskDelay(pdMS_TO_TICKS(100));  // 100ms Zyklus
     }
 }
@@ -264,22 +282,24 @@ void app_main(void)
     ESP_LOGI(TAG, "Katzenbrunnen ESP32-S3 gestartet");
     ESP_LOGI(TAG, "Version: %s", APP_VERSION);
     
-    // Hardware initialisieren
-    if (init_hardware() != ESP_OK) {
-        ESP_LOGE(TAG, "Hardware-Initialisierung fehlgeschlagen");
-        return;
-    }
-    
-    // NVS initialisieren
+    // NVS zuerst initialisieren (WiFi/esp_wifi_init benötigt NVS)
     if (init_nvs() != ESP_OK) {
         ESP_LOGE(TAG, "NVS-Initialisierung fehlgeschlagen");
         return;
     }
     
+    // Hardware initialisieren (inkl. WiFi/Web/OTA)
+    if (init_hardware() != ESP_OK) {
+        ESP_LOGE(TAG, "Hardware-Initialisierung fehlgeschlagen");
+        return;
+    }
+    
     // System-Info ausgeben
-    ESP_LOGI(TAG, "Chip-Revision: %d", esp_chip_revision());
-    ESP_LOGI(TAG, "Freier Heap: %u bytes", esp_get_free_heap_size());
-    ESP_LOGI(TAG, "Minimal freier Heap: %u bytes", esp_get_minimum_free_heap_size());
+    esp_chip_info_t chip_info;
+    esp_chip_info(&chip_info);
+    ESP_LOGI(TAG, "Chip-Revision: %d", chip_info.revision);
+    ESP_LOGI(TAG, "Freier Heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
+    ESP_LOGI(TAG, "Minimal freier Heap: %lu bytes", (unsigned long)esp_get_minimum_free_heap_size());
     ESP_LOGI(TAG, "ESP32-S3 erkannt: %s", 
              strcmp(CONFIG_IDF_TARGET, "esp32s3") == 0 ? "Ja" : "Nein");
     
@@ -300,13 +320,17 @@ void app_main(void)
         ESP_LOGE(TAG, "Watchdog-Task Start fehlgeschlagen");
     }
     
+    if (wifi_start_task() != ESP_OK) {
+        ESP_LOGE(TAG, "WiFi-Task Start fehlgeschlagen");
+    }
+    
     // Steuerungs-Task erstellen (Core 0)
     BaseType_t ret = xTaskCreatePinnedToCore(
         control_task,
         "control_task",
-        TASK_STACK_SERVO,
+        TASK_STACK_CONTROL,
         NULL,
-        TASK_PRIO_SERVO,
+        TASK_PRIO_CONTROL,
         NULL,
         TASK_CORE_CONTROL
     );
@@ -318,9 +342,9 @@ void app_main(void)
     ret = xTaskCreatePinnedToCore(
         app_task,
         "app_task",
-        CONFIG_APP_STACK_SIZE,
+        TASK_STACK_APP,
         NULL,
-        CONFIG_APP_PRIORITY,
+        TASK_PRIO_APP,
         NULL,
         TASK_CORE_CONTROL
     );
@@ -328,6 +352,6 @@ void app_main(void)
         ESP_LOGE(TAG, "Fehler beim Erstellen des Application Tasks");
     } else {
         ESP_LOGI(TAG, "Katzenbrunnen erfolgreich initialisiert");
-        ESP_LOGI(TAG, "Task-Architektur: PIR/Battery/Stack/WDT/Control/App auf Core 0");
+        ESP_LOGI(TAG, "Task-Architektur: PIR/Battery/Stack/WDT/WiFi/Control/App auf Core 0");
     }
 }

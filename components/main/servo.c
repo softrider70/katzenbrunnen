@@ -3,6 +3,7 @@
 #include "esp_log.h"
 #include "esp_err.h"
 #include "driver/ledc.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
 static const char *TAG = "servo";
@@ -23,8 +24,8 @@ esp_err_t servo_init(void)
     
     // LEDC Timer konfigurieren
     ledc_timer_config_t timer_conf = {
-        .duty_resolution = LEDC_TIMER_16_BIT,
-        .freq_hz = SERO_FREQUENCY_HZ,
+        .duty_resolution = LEDC_TIMER_14_BIT,
+        .freq_hz = SERVO_FREQUENCY_HZ,
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .timer_num = LEDC_TIMER_0,
         .clk_cfg = LEDC_AUTO_CLK,

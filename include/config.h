@@ -19,21 +19,25 @@
 #define SERVO_CLOSE_ANGLE_US    1000    // Servo-Position für geschlossenen Wasserhahn (Pulsweite in µs)
 #define MOTION_TIMEOUT_MS       10000   // Timeout ohne Bewegung vor Schließen (ms)
 #define MIN_MOTION_DURATION_MS  2000    // Minimale Bewegungsdauer für Aktivierung (ms)
-#define PIR_COOLDOWN_MS         30000   // Cooldown nach Aktivierung (ms)
+#define PIR_COOLDOWN_MS         30000   // Cooldown nach Schließen vor erneuter Aktivierung (ms)
+#define PIR_DETECTION_WINDOW_MS 1500    // Fenster, in dem eine Bewegung als "aktiv" gilt (ms)
 
 // ============================================================================
-// Batterie-Konfiguration (LiPo 2S2P, 3.7V, 4Ah)
+// Batterie-Konfiguration (LiPo 2S, 7.4V nominal, 4Ah)
 // ============================================================================
-#define BATTERY_CELLS          2       // Anzahl Zellen (parallel: 2S2P = 2 Zellen parallel)
+// WICHTIG (Hardware): Bei 2S liegt die Packspannung bei bis zu 8.4V. Der
+// Spannungsteiler muss so dimensioniert sein, dass am ADC max. ~3.0V anliegen.
+// Mit R1=22k / R2=10k ergibt sich Faktor 3.2 -> 8.4V/3.2 = 2.625V (sicher).
+#define BATTERY_CELLS          2       // Anzahl Zellen in Serie (2S)
 #define BATTERY_CAPACITY_AH     4.0     // Kapazität in Ah
 #define BATTERY_VOLTAGE_MIN     3.0     // Minimale Zellspannung (V) - Abschaltung
 #define BATTERY_VOLTAGE_MAX     4.2     // Maximale Zellspannung (V) - voll geladen
 #define BATTERY_VOLTAGE_NOMINAL 3.7     // Nominale Zellspannung (V)
-#define ADC_ATTENUATION        ADC_ATTEN_DB_11  // ADC Dämpfung für 0-3.3V Messbereich
+#define ADC_ATTENUATION        ADC_ATTEN_DB_12  // ADC Dämpfung (~0-3.1V Messbereich)
 #define ADC_UNIT               ADC_UNIT_1
-#define ADC_CHANNEL            ADC_CHANNEL_1
-#define BATTERY_DIVIDER_R1     10000   // Spannungsteiler R1 (Ohm)
-#define BATTERY_DIVIDER_R2     10000   // Spannungsteiler R2 (Ohm)
+#define ADC_CHANNEL            ADC_CHANNEL_0   // GPIO1 = ADC1_CH0 auf ESP32-S3
+#define BATTERY_DIVIDER_R1     22000   // Spannungsteiler R1 (Ohm) - oben
+#define BATTERY_DIVIDER_R2     10000   // Spannungsteiler R2 (Ohm) - unten (an ADC)
 
 // ============================================================================
 // Servo Configuration - Gigaline Standard Servo
@@ -50,13 +54,13 @@
 #define SERVO_MIN_PULSE_US   500    // Minimale Pulsweite (0.5ms)
 #define SERVO_MAX_PULSE_US   2400   // Maximale Pulsweite (2.4ms)
 #define SERVO_NEUTRAL_US     1500   // Neutralposition (1.5ms)
-#define SERO_FREQUENCY_HZ    50     // PWM Frequenz (50Hz = 20ms Periode)
+#define SERVO_FREQUENCY_HZ   50     // PWM Frequenz (50Hz = 20ms Periode)
 #define SERVO_VOLTAGE_MIN    4.8    // Minimale Betriebsspannung (V)
 #define SERVO_VOLTAGE_MAX    6.0    // Maximale Betriebsspannung (V)
 #define SERVO_TORQUE_4V8     3.0    // Drehmoment bei 4.8V (kg/cm)
 #define SERVO_TORQUE_6V      3.7    // Drehmoment bei 6.0V (kg/cm)
 #define SERVO_SPEED_4V8      0.19   // Geschwindigkeit bei 4.8V (s/60°)
-#define SERO_WEIGHT_G       37     // Gewicht (Gramm)
+#define SERVO_WEIGHT_G       37     // Gewicht (Gramm)
 
 // ============================================================================
 // PIR Sensor Configuration - BIS0001 PIR Motion Detector
@@ -84,26 +88,27 @@
 // ============================================================================
 // FreeRTOS Configuration
 // ============================================================================
-// Get these values from sdkconfig.defaults
-// CONFIG_APP_STACK_SIZE = Task stack size (bytes)
-// CONFIG_APP_PRIORITY   = Task priority (0-24, higher = more important)
-// CONFIG_APP_CORE       = Core affinity (0, 1, or tskNO_AFFINITY)
+// Task-Stackgrößen und Prioritäten werden direkt hier definiert
 
 // Task Stack Sizes
 #define TASK_STACK_PIR          4096    // PIR-Task Stack
-#define TASK_STACK_SERVO        4096    // Servo-Task Stack
-#define TASK_STACK_WEB          8192    // Web-Server-Task Stack
+#define TASK_STACK_SERVO        4096    // Servo-Task Stack (auch Control-Task)
+#define TASK_STACK_WEB          8192    // Web-Server-Task Stack (httpd)
 #define TASK_STACK_WIFI         4096    // WiFi-Task Stack
 #define TASK_STACK_OTA          8192    // OTA-Task Stack
 #define TASK_STACK_BATTERY      3072    // Battery-Monitor-Task Stack
+#define TASK_STACK_APP          4096    // Hauptanwendungs-Task Stack
+#define TASK_STACK_CONTROL      4096    // Steuerungs-Task Stack
 
 // Task Priorities (0-24, higher = more important)
 #define TASK_PRIO_PIR           5       // PIR-Task Priorität
 #define TASK_PRIO_SERVO         4       // Servo-Task Priorität
+#define TASK_PRIO_CONTROL       4       // Steuerungs-Task Priorität
 #define TASK_PRIO_WEB           3       // Web-Server-Task Priorität
 #define TASK_PRIO_WIFI          2       // WiFi-Task Priorität
 #define TASK_PRIO_OTA           1       // OTA-Task Priorität
 #define TASK_PRIO_BATTERY       2       // Battery-Monitor-Task Priorität
+#define TASK_PRIO_APP           3       // Hauptanwendungs-Task Priorität
 
 // Task Core Affinity
 #define TASK_CORE_CONTROL        0       // Core 0 für Steuerungsaufgaben
@@ -115,7 +120,7 @@
 #define WIFI_SSID_MAX_LEN       32
 #define WIFI_PASSWORD_MAX_LEN   64
 #define WIFI_RETRY_INTERVAL_MS  5000    // WiFi Verbindungsretry Intervall
-#define WIFI_MAX_RETRIES         10      // Maximale Verbindungsversuche
+#define WIFI_MAX_RETRY           10      // Maximale Verbindungsversuche
 #define WIFI_AP_SSID            "katzenbrunnen_setup"
 #define WIFI_AP_PASSWORD        "katzen123"
 
@@ -123,8 +128,9 @@
 // Web Server Configuration
 // ============================================================================
 #define WEB_SERVER_PORT         80
-#define MAX_EVENT_LOG_ENTRIES   50      // Maximale Einträge im Event-Log
-#define MAX_OPEN_TIME_ENTRIES   50      // Maximale Einträge im Öffnungszeit-Log
+// MAX_EVENT_LOG_ENTRIES und MAX_OPEN_TIME_ENTRIES werden aktuell nicht verwendet
+// #define MAX_EVENT_LOG_ENTRIES   50
+// #define MAX_OPEN_TIME_ENTRIES   50
 
 // ============================================================================
 // OTA Configuration
@@ -144,8 +150,10 @@
 // ============================================================================
 // Stack Monitoring Configuration
 // ============================================================================
-#define STACK_WARNING_PERCENT    60      // Warnung bei >60% Stack-Nutzung
-#define STACK_CRITICAL_PERCENT   80      // Kritisch bei >80% Stack-Nutzung
+// Hinweis: FreeRTOS liefert nur den freien Reststack (High-Water-Mark), nicht
+// die Gesamtgröße. Daher wird ein absoluter freier Reservepuffer überwacht.
+#define STACK_FREE_WARNING_BYTES  768    // Warnung wenn freier Stack < 768 Bytes
+#define STACK_FREE_CRITICAL_BYTES 384    // Kritisch wenn freier Stack < 384 Bytes
 #define STACK_MONITOR_INTERVAL_MS 10000  // Stack-Überwachung alle 10 Sekunden
 
 // ============================================================================
@@ -168,6 +176,8 @@
 #define NVS_STORE_NAME "config"
 #define NVS_ACTIVATION_COUNT_KEY "activation_cycles"
 #define NVS_LAST_TRIGGER_KEY "last_trigger"
+#define NVS_KEY_WIFI_SSID "wifi_ssid"
+#define NVS_KEY_WIFI_PASS "wifi_pass"
 
 // ============================================================================
 // Application Defaults
@@ -175,7 +185,6 @@
 #define APP_VERSION_MAJOR 0
 #define APP_VERSION_MINOR 1
 #define APP_VERSION "0.1.0"
-#define APP_LOGLEVEL CONFIG_APP_LOGLEVEL  // From sdkconfig
 #define APP_NAME "Katzenbrunnen"
 
 // ============================================================================

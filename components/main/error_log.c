@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include <string.h>
+#include <inttypes.h>
 
 static const char *TAG = "error_log";
 
@@ -47,7 +48,7 @@ void error_log_generate_code(char *code, uint8_t error_id, uint64_t timestamp_ms
 {
     // Fehlercode-Format: E + 3-stellige ID + 4-stellige Zeit (Sekunden seit Boot mod 10000)
     uint32_t time_sec = (timestamp_ms / 1000) % 10000;
-    snprintf(code, ERROR_CODE_LENGTH + 1, "E%03d%04d", error_id, time_sec);
+    snprintf(code, ERROR_CODE_LENGTH + 1, "E%03u%04" PRIu32, error_id, time_sec);
 }
 
 esp_err_t error_log_add(uint8_t error_id, const char *task_name, uint8_t severity)

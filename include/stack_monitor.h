@@ -7,11 +7,11 @@
 
 typedef struct {
     char task_name[16];
-    uint32_t stack_size;
-    uint32_t stack_free;
-    uint8_t stack_percent;  // 0-100
-    bool warning;           // >60%
-    bool critical;          // >80%
+    uint32_t stack_size;    // Gesamtgröße (0 = nicht ermittelbar)
+    uint32_t stack_free;    // Freier Reststack in Bytes (High-Water-Mark)
+    uint8_t stack_percent;  // 0 (ohne Gesamtgröße nicht bestimmbar)
+    bool warning;           // freier Stack < STACK_FREE_WARNING_BYTES
+    bool critical;          // freier Stack < STACK_FREE_CRITICAL_BYTES
 } stack_info_t;
 
 /**

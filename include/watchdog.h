@@ -6,19 +6,31 @@
 #include "esp_err.h"
 
 /**
- * @brief Watchdog initialisieren
+ * @brief Watchdog (TWDT) initialisieren/rekonfigurieren
  * @return ESP_OK bei Erfolg, Fehlercode sonst
  */
 esp_err_t watchdog_init(void);
 
 /**
- * @brief Watchdog Task starten
- * @return ESP_OK bei Erfolg, Fehlercode sonst
+ * @brief Watchdog aktiv markieren (Kompatibilität, kein eigener Task mehr)
+ * @return ESP_OK
  */
 esp_err_t watchdog_start_task(void);
 
 /**
- * @brief Watchdog-Reset für aktuellen Task
+ * @brief Aktuellen Task beim Watchdog anmelden
+ * Muss aus dem zu überwachenden Task aufgerufen werden.
+ * @return ESP_OK bei Erfolg, Fehlercode sonst
+ */
+esp_err_t watchdog_subscribe(void);
+
+/**
+ * @brief Watchdog für aktuellen (angemeldeten) Task zurücksetzen/füttern
+ */
+void watchdog_feed(void);
+
+/**
+ * @brief Watchdog-Reset für aktuellen Task (Alias zu watchdog_feed)
  */
 void watchdog_reset(void);
 

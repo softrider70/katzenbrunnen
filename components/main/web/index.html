@@ -36,6 +36,7 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <button class="tab-btn active" onclick="showTab('dashboard')">Dashboard</button>
 <button class="tab-btn" onclick="showTab('logs')">Log-FIFO</button>
 <button class="tab-btn" onclick="showTab('codes')">Fehlercodes</button>
+<button class="tab-btn" onclick="showTab('wifi')">WiFi Setup</button>
 </div>
 
 <!-- DASHBOARD TAB -->
@@ -76,6 +77,24 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <div id="msg-codes" class="msg"></div>
 </div>
 
+<!-- WIFI SETUP TAB -->
+<div class="tab-content" id="wifi">
+<p style="font-size:12px;margin:0 0 10px 0"><b>WiFi-Einrichtung:</b></p>
+<div style="margin:10px 0">
+<label style="font-size:12px;font-weight:bold">SSID:</label>
+<input type="text" id="wifi-ssid-input" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px" placeholder="WiFi-SSID eingeben">
+</div>
+<div style="margin:10px 0">
+<label style="font-size:12px;font-weight:bold">Passwort:</label>
+<input type="password" id="wifi-pass-input" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px" placeholder="WiFi-Passwort eingeben">
+</div>
+<div class="buttons">
+<button class="btn-primary" onclick="saveWifi()">Speichern & Verbinden</button>
+<button class="btn-secondary" onclick="wifiReconnect()">Neu verbinden</button>
+</div>
+<div id="msg-wifi" class="msg"></div>
+</div>
+
 </div>
 
 <script>
@@ -87,6 +106,7 @@ document.getElementById(tabId).classList.add('active');
 if(tabId==='dashboard')updateDashboard();
 if(tabId==='logs')loadLogs();
 if(tabId==='codes')loadCodes();
+if(tabId==='wifi')loadWifiConfig();
 }
 function showMsg(tabId,text,isError){
 const msgEl=document.getElementById('msg-'+tabId);
@@ -155,6 +175,31 @@ tbody.appendChild(tr);
 function errText(id){
 const map={'0x01':'Stack Overflow','0x02':'Watchdog Trigger','0x03':'Servo Failure','0x04':'Battery Critical','0x05':'PIR Failure','0x06':'ADC Failure','0x07':'NVS Failure','0x08':'WiFi Failure','0x09':'OTA Failure','0x0A':'Memory Allocation'};
 return map['0x'+id.toString(16).padStart(2,'0').toUpperCase()]||'Unknown';
+}
+function loadWifiConfig(){
+fetch('/api/status').then(r=>r.json()).then(d=>{
+document.getElementById('wifi-ssid-input').value=d.wifi_ssid||'';
+}).catch(e=>console.error('loadWifiConfig failed:',e));
+}
+function saveWifi(){
+const ssid=document.getElementById('wifi-ssid-input').value.trim();
+const pass=document.getElementById('wifi-pass-input').value;
+if(!ssid){
+showMsg('wifi','SSID darf nicht leer sein',true);
+return;
+}
+const body=JSON.stringify({ssid:ssid,password:pass});
+fetch('/api/wifi',{method:'POST',headers:{'Content-Type':'application/json'},body:body}).then(r=>r.json()).then(d=>{
+showMsg('wifi',d.message,false);
+if(d.status==='OK'){
+setTimeout(()=>{location.reload();},2000);
+}
+}).catch(e=>showMsg('wifi','Fehler: '+e.message,true));
+}
+function wifiReconnect(){
+fetch('/api/wifi/reconnect',{method:'POST'}).then(r=>r.json()).then(d=>{
+showMsg('wifi',d.message,false);
+}).catch(e=>showMsg('wifi','Fehler: '+e.message,true));
 }
 updateDashboard();
 </script>

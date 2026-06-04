@@ -1,6 +1,7 @@
 #include "wifi.h"
 #include "config.h"
 #include "error_log.h"
+#include "dns_server.h"
 #include "esp_log.h"
 #include "esp_err.h"
 #include "esp_wifi.h"
@@ -24,6 +25,7 @@ static const char *TAG = "wifi";
 typedef struct {
     bool is_connected;
     bool ap_active;
+    bool ap_mode_forced;  // AP-Modus erzwungen (fehlende Credentials oder 3 Fehlversuche)
     char ssid[32];
     uint8_t retry_count;
     uint32_t last_error_code;
@@ -33,6 +35,7 @@ typedef struct {
 static wifi_state_t wifi_state = {
     .is_connected = false,
     .ap_active = false,
+    .ap_mode_forced = false,
     .ssid = "",
     .retry_count = 0,
     .last_error_code = 0,
@@ -56,21 +59,29 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
             esp_wifi_connect();
         } else {
             ESP_LOGW(TAG, "Keine STA-Credentials - AP-Setup-Modus aktiv");
+            xSemaphoreTake(wifi_mutex, portMAX_DELAY);
+            wifi_state.ap_mode_forced = true;
+            xSemaphoreGive(wifi_mutex);
         }
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         wifi_event_sta_disconnected_t *event = (wifi_event_sta_disconnected_t *)event_data;
         ESP_LOGW(TAG, "WiFi getrennt: Grund %d", event->reason);
-        
+
         xSemaphoreTake(wifi_mutex, portMAX_DELAY);
         wifi_state.is_connected = false;
         wifi_state.retry_count++;
         wifi_state.last_error_code = event->reason;
         uint8_t current_retry = wifi_state.retry_count;
         xSemaphoreGive(wifi_mutex);
-        
+
         if (current_retry < WIFI_MAX_RETRY) {
             esp_wifi_connect();
         } else {
+            // Nach 3 Fehlversuchen: AP-Modus erzwingen
+            ESP_LOGW(TAG, "Maximale Retry-Anzahl erreicht (%d), AP-Modus wird erzwungen", WIFI_MAX_RETRY);
+            xSemaphoreTake(wifi_mutex, portMAX_DELAY);
+            wifi_state.ap_mode_forced = true;
+            xSemaphoreGive(wifi_mutex);
             xEventGroupSetBits(wifi_event_group, WIFI_FAIL_BIT);
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
@@ -187,6 +198,7 @@ esp_err_t wifi_init(void)
             .password = WIFI_AP_PASSWORD,
             .max_connection = 4,
             .authmode = WIFI_AUTH_WPA2_PSK,
+            .channel = 1,
         },
     };
     if (strlen(WIFI_AP_PASSWORD) == 0) {
@@ -195,6 +207,26 @@ esp_err_t wifi_init(void)
     ret = esp_wifi_set_config(WIFI_IF_AP, &ap_config);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "AP-Config-Setzen fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    // AP IP-Adresse konfigurieren
+    esp_netif_ip_info_t ap_ip_info;
+    IP4_ADDR(&ap_ip_info.ip, 192, 168, 4, 1);
+    IP4_ADDR(&ap_ip_info.gw, 192, 168, 4, 1);
+    IP4_ADDR(&ap_ip_info.netmask, 255, 255, 255, 0);
+    ret = esp_netif_dhcps_stop(ap_netif);
+    if (ret != ESP_OK && ret != ESP_ERR_ESP_NETIF_DHCP_ALREADY_STOPPED) {
+        ESP_LOGE(TAG, "AP DHCP-Stop fehlgeschlagen: %s", esp_err_to_name(ret));
+    }
+    ret = esp_netif_set_ip_info(ap_netif, &ap_ip_info);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "AP IP-Setzen fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    ret = esp_netif_dhcps_start(ap_netif);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "AP DHCP-Start fehlgeschlagen: %s", esp_err_to_name(ret));
         return ret;
     }
     
@@ -253,6 +285,20 @@ esp_err_t wifi_start_task(void)
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "WiFi-Start fehlgeschlagen: %s", esp_err_to_name(ret));
         return ret;
+    }
+
+    // DNS-Server starten wenn AP-Modus erzwungen ist
+    xSemaphoreTake(wifi_mutex, portMAX_DELAY);
+    bool ap_forced = wifi_state.ap_mode_forced;
+    xSemaphoreGive(wifi_mutex);
+
+    if (ap_forced) {
+        ret = dns_server_start();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "DNS-Server Start fehlgeschlagen: %s", esp_err_to_name(ret));
+        } else {
+            ESP_LOGI(TAG, "DNS-Server gestartet für Captive Portal");
+        }
     }
     
     BaseType_t task_ret = xTaskCreatePinnedToCore(
@@ -413,4 +459,13 @@ bool wifi_is_sleep_active(void)
     active = wifi_state.sleep_active;
     xSemaphoreGive(wifi_mutex);
     return active;
+}
+
+bool wifi_is_ap_mode_forced(void)
+{
+    bool forced;
+    xSemaphoreTake(wifi_mutex, portMAX_DELAY);
+    forced = wifi_state.ap_mode_forced;
+    xSemaphoreGive(wifi_mutex);
+    return forced;
 }

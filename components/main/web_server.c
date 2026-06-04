@@ -15,6 +15,7 @@
 #include "freertos/task.h"
 #include <string.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
 
 static const char *TAG = "web_server";
 static httpd_handle_t server = NULL;
@@ -438,9 +439,33 @@ extern const char index_html_end[]   asm("_binary_index_html_end");
 static esp_err_t index_handler(httpd_req_t *req)
 {
     const size_t index_html_len = index_html_end - index_html_start;
-    
+
     httpd_resp_set_type(req, "text/html; charset=utf-8");
     httpd_resp_send(req, index_html_start, index_html_len);
+    return ESP_OK;
+}
+
+// ============================================================================
+// Captive Portal Handler: Catch-All für alle Anfragen im AP-Modus
+// ============================================================================
+static esp_err_t captive_portal_handler(httpd_req_t *req)
+{
+    // Nur im AP-Modus weiterleiten
+    if (!wifi_is_ap_mode_forced()) {
+        // Nicht im AP-Modus: 404 zurückgeben
+        httpd_resp_send_404(req);
+        return ESP_OK;
+    }
+
+    // Captive Portal Redirect: Auf Hauptseite weiterleiten
+    char redirect_url[128];
+    snprintf(redirect_url, sizeof(redirect_url), "http://%s/", WIFI_AP_IP);
+
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", redirect_url);
+    httpd_resp_send(req, NULL, 0);
+
+    ESP_LOGI(TAG, "Captive Portal Redirect: %s -> %s", req->uri, redirect_url);
     return ESP_OK;
 }
 
@@ -531,6 +556,13 @@ static httpd_uri_t index_uri = {
     .user_ctx = NULL
 };
 
+static httpd_uri_t captive_portal_uri = {
+    .uri = "/*",
+    .method = HTTP_GET,
+    .handler = captive_portal_handler,
+    .user_ctx = NULL
+};
+
 esp_err_t web_server_init(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -558,6 +590,7 @@ esp_err_t web_server_init(void)
     httpd_register_uri_handler(server, &wifi_config_uri);
     httpd_register_uri_handler(server, &wifi_reconnect_uri);
     httpd_register_uri_handler(server, &stacks_uri);
+    httpd_register_uri_handler(server, &captive_portal_uri);  // Muss zuletzt registriert werden (Catch-All)
     
     ESP_LOGI(TAG, "Web-Server gestartet auf Port %d", WEB_SERVER_PORT);
     return ESP_OK;

@@ -67,4 +67,10 @@ void wifi_set_sleep(bool enable);
  */
 bool wifi_is_sleep_active(void);
 
+/**
+ * @brief AP-Modus-Status abrufen
+ * @return true wenn AP-Modus erzwungen ist, false sonst
+ */
+bool wifi_is_ap_mode_forced(void);
+
 #endif // WIFI_H

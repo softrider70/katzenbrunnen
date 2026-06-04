@@ -74,6 +74,14 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - **Spannungsanzeige** (Aktuelle Spannung, Prozent, Status)
 - **OTA-Steuerbereich** für Firmware-Updates (ESP-IDF 6.1: aktuell deaktiviert)
 - **WiFi-Konfiguration** für Netzwerk-Setup
+- **Error-Log-Anzeige** mit farbcodierter Schweregrad-Indikator
+
+### WiFi-Einrichtung (Captive Portal):
+- **AP-Start bei fehlenden Credentials:** Wenn kein WiFi-Passwort im NVS gespeichert ist, startet automatisch der Access Point
+- **AP-Start nach 3 Fehlversuchen:** Wenn 3 aufeinanderfolgende Anmeldeversuche mit gespeicherten Credentials fehlschlagen, startet der AP
+- **Captive Portal:** Nach Verbindung mit dem AP wird der Client automatisch auf die WiFi-Einrichtungsseite weitergeleitet
+- **Einrichtung über Web-UI:** SSID und Passwort können direkt im Browser eingegeben werden
+- **Automatische Verbindung:** Nach erfolgreicher Einrichtung verbindet sich das Gerät automatisch mit dem konfigurierten Netzwerk
 
 ### Stromspar-Modi:
 - **WiFi Sleep:** WLAN deaktivieren wenn nicht benötigt

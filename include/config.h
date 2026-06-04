@@ -120,9 +120,10 @@
 #define WIFI_SSID_MAX_LEN       32
 #define WIFI_PASSWORD_MAX_LEN   64
 #define WIFI_RETRY_INTERVAL_MS  5000    // WiFi Verbindungsretry Intervall
-#define WIFI_MAX_RETRY           10      // Maximale Verbindungsversuche
+#define WIFI_MAX_RETRY           3       // Maximale Verbindungsversuche vor AP-Start
 #define WIFI_AP_SSID            "katzenbrunnen_setup"
 #define WIFI_AP_PASSWORD        "katzen123"
+#define WIFI_AP_IP              "192.168.4.1"  // AP IP-Adresse
 
 // ============================================================================
 // Web Server Configuration

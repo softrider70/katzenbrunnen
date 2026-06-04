@@ -454,7 +454,7 @@ static esp_err_t system_reset_handler(httpd_req_t *req)
     send_json_response(req, "{\"status\":\"OK\",\"message\":\"System wird neu gestartet\"}");
 
     // Kurze Verzögerung damit Response gesendet werden kann
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(DELAY_500MS_MS));
 
     // System-Reset
     esp_restart();

@@ -124,8 +124,11 @@
 #define WIFI_AP_SSID            "katzenbrunnen_setup"
 #define WIFI_AP_PASSWORD        "katzen123"
 #define WIFI_AP_IP              "192.168.4.1"  // AP IP-Adresse
+#define WIFI_AP_GATEWAY         "192.168.4.1"  // AP Gateway
+#define WIFI_AP_NETMASK         "255.255.255.0"  // AP Netmask
 #define WIFI_HOSTNAME           "katzenbrunnen"  // mDNS Hostname
 #define WIFI_TX_POWER           14  // WiFi Sendeleistung in dBm (0-20, Standard: 14 für 7m Entfernung)
+#define WIFI_TX_POWER_HW_MAX    84  // TX-Power Hardware Limit (ESP32-S3)
 
 // ============================================================================
 // Web Server Configuration
@@ -212,5 +215,15 @@
 // Logging Configuration
 // ============================================================================
 // #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+
+// ============================================================================
+// Delay Configuration (Magic Numbers)
+// ============================================================================
+#define DELAY_1S_MS            1000    // 1 Sekunde Delay
+#define DELAY_5S_MS            5000    // 5 Sekunden Delay
+#define DELAY_500MS_MS         500     // 500ms Delay
+#define DELAY_100MS_MS         100     // 100ms Delay
+#define DELAY_50MS_MS          50      // 50ms Delay
+#define DELAY_30S_MS           30000   // 30 Sekunden Delay
 
 #endif // CONFIG_H

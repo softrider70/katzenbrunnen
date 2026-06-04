@@ -152,7 +152,7 @@ static void battery_task(void *pvParameters)
     
     while (1) {
         battery_update();
-        vTaskDelay(pdMS_TO_TICKS(5000));  // Alle 5 Sekunden messen
+        vTaskDelay(pdMS_TO_TICKS(DELAY_5S_MS));  // Alle 5 Sekunden messen
     }
 }
 

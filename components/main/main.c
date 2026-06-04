@@ -498,7 +498,7 @@ static void control_task(void *pvParameters)
         }
 
         watchdog_feed();
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(DELAY_100MS_MS));
     }
 }
 
@@ -515,7 +515,7 @@ static void app_task(void *pvParameters)
     while (1) {
         // Manueller Taster prüfen
         if (gpio_get_level(GPIO_BUTTON) == 0) {
-            vTaskDelay(pdMS_TO_TICKS(50));  // Entprellung
+            vTaskDelay(pdMS_TO_TICKS(DELAY_50MS_MS));  // Entprellung
             if (gpio_get_level(GPIO_BUTTON) == 0) {
                 ESP_LOGI(TAG, "Manueller Taster gedrückt");
                 if (!servo_is_valve_open()) {
@@ -523,14 +523,14 @@ static void app_task(void *pvParameters)
                 } else {
                     close_water_valve();
                 }
-                vTaskDelay(pdMS_TO_TICKS(1000));  // Verhindere mehrfache Aktivierung
+                vTaskDelay(pdMS_TO_TICKS(DELAY_1S_MS));  // Verhindere mehrfache Aktivierung
             }
         }
         
         // Status-Logging alle 30 Sekunden
         static uint32_t last_status = 0;
         uint32_t current_tick = xTaskGetTickCount() * portTICK_PERIOD_MS;
-        if (current_tick - last_status > 30000) {
+        if (current_tick - last_status > DELAY_30S_MS) {
             bool valve_open = servo_is_valve_open();
             xSemaphoreTake(state_mutex, portMAX_DELAY);
             uint32_t activations = activation_count;
@@ -545,7 +545,7 @@ static void app_task(void *pvParameters)
         }
         
         watchdog_feed();
-        vTaskDelay(pdMS_TO_TICKS(100));  // 100ms Zyklus
+        vTaskDelay(pdMS_TO_TICKS(DELAY_100MS_MS));  // 100ms Zyklus
     }
 }
 

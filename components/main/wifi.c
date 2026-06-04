@@ -7,7 +7,7 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_netif.h"
-#include "mdns.h"
+// #include "mdns.h"  // mDNS in ESP-IDF 6.1 deaktiviert
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
@@ -214,6 +214,7 @@ esp_err_t wifi_init(void)
     IP4_ADDR(&ap_ip_info.ip, 192, 168, 4, 1);
     IP4_ADDR(&ap_ip_info.gw, 192, 168, 4, 1);
     IP4_ADDR(&ap_ip_info.netmask, 255, 255, 255, 0);
+    // TODO: Magic Numbers durch config.h Defines ersetzen (WIFI_AP_IP, WIFI_AP_GATEWAY, WIFI_AP_NETMASK)
     ret = esp_netif_dhcps_stop(ap_netif);
     if (ret != ESP_OK && ret != ESP_ERR_ESP_NETIF_DHCP_ALREADY_STOPPED) {
         ESP_LOGE(TAG, "AP DHCP-Stop fehlgeschlagen: %s", esp_err_to_name(ret));
@@ -276,30 +277,10 @@ esp_err_t wifi_init(void)
     
     ESP_LOGI(TAG, "WiFi-Modul initialisiert (Modus: APSTA)");
 
-    // mDNS initialisieren
-    ret = mdns_init();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "mDNS-Initialisierung fehlgeschlagen: %s", esp_err_to_name(ret));
-        return ret;
-    }
-
-    // Hostname setzen
-    ret = mdns_hostname_set(WIFI_HOSTNAME);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "mDNS-Hostname-Setzen fehlgeschlagen: %s", esp_err_to_name(ret));
-        mdns_free();
-        return ret;
-    }
-
-    // mDNS-Instanz für HTTP konfigurieren
-    ret = mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "mDNS-Service-Add fehlgeschlagen: %s", esp_err_to_name(ret));
-        mdns_free();
-        return ret;
-    }
-
-    ESP_LOGI(TAG, "mDNS gestartet: %s.local", WIFI_HOSTNAME);
+    // mDNS in ESP-IDF 6.1 deaktiviert (Komponente nicht verfügbar)
+    // TODO: mDNS über Component Manager hinzufügen, falls benötigt
+    ESP_LOGI(TAG, "mDNS deaktiviert (ESP-IDF 6.1)");
+    
     return ESP_OK;
 }
 
@@ -316,7 +297,7 @@ esp_err_t wifi_start_task(void)
     int8_t tx_power_dbm = WIFI_TX_POWER;
     int8_t tx_power_hw = (int8_t)(tx_power_dbm * 4.2f);
     if (tx_power_hw < 0) tx_power_hw = 0;
-    if (tx_power_hw > 84) tx_power_hw = 84;
+    if (tx_power_hw > WIFI_TX_POWER_HW_MAX) tx_power_hw = WIFI_TX_POWER_HW_MAX;
 
     ret = esp_wifi_set_max_tx_power(tx_power_hw);
     if (ret == ESP_OK) {
@@ -469,7 +450,7 @@ esp_err_t wifi_reconnect(void)
     xSemaphoreGive(wifi_mutex);
     
     esp_wifi_disconnect();
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(DELAY_1S_MS));
     esp_wifi_connect();
     
     return ESP_OK;

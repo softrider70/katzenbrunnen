@@ -108,7 +108,7 @@ function Get-FlashType {
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
 
-$env:ESP_IDF_VERSION = "6.0"
+$env:ESP_IDF_VERSION = "6.1"
 . .\activate-esp-idf.ps1
 
 $stateFile = Join-Path $repoRoot ".last_flash_mode.json"

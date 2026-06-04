@@ -528,7 +528,7 @@ static esp_err_t pir_events_handler(httpd_req_t *req)
             (i > 0) ? "," : "",
             (unsigned long long)pir_events_buffer[i].timestamp_ms,
             time_str,
-            pir_events_buffer[i].duration_ms
+            (unsigned int)pir_events_buffer[i].duration_ms
         );
     }
 
@@ -574,7 +574,7 @@ static esp_err_t servo_events_handler(httpd_req_t *req)
             (i > 0) ? "," : "",
             (unsigned long long)servo_events_buffer[i].timestamp_ms,
             time_str,
-            servo_events_buffer[i].duration_ms
+            (unsigned int)servo_events_buffer[i].duration_ms
         );
     }
 

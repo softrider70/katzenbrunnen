@@ -15,8 +15,7 @@ static bool valve_open = false;
 static SemaphoreHandle_t servo_mutex = NULL;
 static portMUX_TYPE servo_mux = portMUX_INITIALIZER_UNLOCKED;  // Critical Section für emergency_close
 
-// Öffnungsereignisse Ringbuffer
-#define SERVO_EVENT_MAX_COUNT 50
+// Öffnungsereignisse Ringbuffer (SERVO_EVENT_MAX_COUNT in servo.h definiert)
 static servo_event_t servo_events[SERVO_EVENT_MAX_COUNT];
 static uint16_t servo_event_index = 0;
 static uint16_t servo_event_count = 0;

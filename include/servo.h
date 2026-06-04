@@ -39,6 +39,9 @@ bool servo_is_valve_open(void);
  */
 void servo_emergency_close(void);
 
+// Maximale Anzahl gespeicherter Öffnungsereignisse (Ringbuffer)
+#define SERVO_EVENT_MAX_COUNT 50
+
 /**
  * @brief Öffnungsereignis-Struktur
  */

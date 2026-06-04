@@ -331,7 +331,7 @@ idf.py build
 
 ### Mutex Cleanup
 Alle Module mit Mutex-Synchronisation haben entsprechende `*_deinit()` Funktionen:
-- `wifi_deinit()` - WiFi-Modul
+- `wifi_module_deinit()` - WiFi-Modul (umbenannt wegen Namenskonflikt mit esp_wifi-Library)
 - `stack_monitor_deinit()` - Stack-Monitor
 - `heap_monitor_deinit()` - Heap-Monitor
 - `servo_deinit()` - Servo-Modul

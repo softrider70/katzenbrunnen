@@ -16,12 +16,10 @@ static portMUX_TYPE pir_mux = portMUX_INITIALIZER_UNLOCKED;
 static volatile uint64_t last_motion_time = 0;
 static bool isr_service_installed = false;
 
-// Bewegungsereignisse Ringbuffer
-#define PIR_EVENT_MAX_COUNT 50
+// Bewegungsereignisse Ringbuffer (PIR_EVENT_MAX_COUNT in pir.h definiert)
 static pir_event_t pir_events[PIR_EVENT_MAX_COUNT];
 static uint16_t pir_event_index = 0;
 static uint16_t pir_event_count = 0;
-static uint64_t motion_start_time = 0;  // Beginn der aktuellen Bewegungsphase
 
 // PIR-Bewegungserkennung im Erkennungsfenster (PIR_DETECTION_WINDOW_MS)
 #define PIR_DETECTION_WINDOW_US (PIR_DETECTION_WINDOW_MS * 1000ULL)

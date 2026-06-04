@@ -7,6 +7,7 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_netif.h"
+#include "lwip/ip4_addr.h"  // IP4_ADDR Makro für AP-IP-Konfiguration
 // #include "mdns.h"  // mDNS in ESP-IDF 6.1 deaktiviert
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -509,7 +510,7 @@ esp_err_t wifi_reset_credentials(void)
     return ESP_OK;
 }
 
-void wifi_deinit(void)
+void wifi_module_deinit(void)
 {
     // Mutex löschen
     if (wifi_mutex != NULL) {

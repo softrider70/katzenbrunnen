@@ -41,10 +41,10 @@ static void time_sync_notification_cb(struct timeval *tv)
 static void initialize_sntp(void)
 {
     ESP_LOGI(TAG, "Initialisiere SNTP");
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
     sntp_set_time_sync_notification_cb(time_sync_notification_cb);
-    sntp_init();
+    esp_sntp_init();
 }
 
 // Status-Variablen (einzige Wahrheit für "Ventil offen" ist das servo-Modul)
@@ -126,114 +126,13 @@ void deinit_hardware(void)
 }
 
 // ============================================================================
-// NVS Initialisierung
-// ============================================================================
-static esp_err_t init_nvs(void)
-{
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_LOGW(TAG, "NVS Flash leer oder Version geändert, formatiere...");
-        ret = nvs_flash_erase();
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "NVS Flash-Erase fehlgeschlagen: %s", esp_err_to_name(ret));
-            return ret;
-        }
-        ret = nvs_flash_init();
-    }
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "NVS Flash-Init fehlgeschlagen: %s", esp_err_to_name(ret));
-        return ret;
-    }
-    ESP_LOGI(TAG, "NVS initialisiert");
-    return ESP_OK;
-}
-
-// ============================================================================
-// SNTP Initialisierung
-// ============================================================================
-static void initialize_sntp(void)
-{
-    ESP_LOGI(TAG, "Initialisiere SNTP");
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
-    sntp_init();
-}
-
-// ============================================================================
-// Hardware Initialisierung
-// ============================================================================
-static esp_err_t init_hardware(void)
-{
-    esp_err_t ret;
-    
-    // GPIO für Servo konfigurieren
-    gpio_config_t io_conf = {
-        .pin_bit_mask = (1ULL << SERVO_GPIO),
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = 0,
-        .pull_down_en = 0,
-        .intr_type = GPIO_INTR_DISABLE
-    };
-    ret = gpio_config(&io_conf);
-    if (ret != ESP_OK) return ret;
-    
-    // GPIO für PIR konfigurieren
-    io_conf.pin_bit_mask = (1ULL << PIR_GPIO);
-    io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pull_down_en = 0;
-    io_conf.pull_up_en = 1;
-    ret = gpio_config(&io_conf);
-    if (ret != ESP_OK) return ret;
-    
-    // Mutex erstellen
-    state_mutex = xSemaphoreCreateMutex();
-    if (state_mutex == NULL) {
-        ESP_LOGE(TAG, "Mutex-Erstellung fehlgeschlagen");
-        return ESP_FAIL;
-    }
-    
-    // Module initialisieren
-    ret = error_log_init();
-    if (ret != ESP_OK) return ret;
-    
-    ret = pir_init();
-    if (ret != ESP_OK) return ret;
-    
-    ret = servo_init();
-    if (ret != ESP_OK) return ret;
-    
-    ret = battery_init();
-    if (ret != ESP_OK) return ret;
-    
-    ret = stack_monitor_init();
-    if (ret != ESP_OK) return ret;
-    
-    ret = heap_monitor_init();
-    if (ret != ESP_OK) return ret;
-    
-    ret = watchdog_init();
-    if (ret != ESP_OK) return ret;
-    
-    ret = wifi_init();
-    if (ret != ESP_OK) return ret;
-    
-    ret = web_server_init();
-    if (ret != ESP_OK) return ret;
-    
-    ret = ota_init();
-    if (ret != ESP_OK) return ret;
-    
-    ESP_LOGI(TAG, "Hardware initialisiert");
-    return ESP_OK;
-}
-
-// ============================================================================
 // Deinitialisierung
 // ============================================================================
-static void deinit_modules(void)
+// Cleanup-Infrastruktur (kein Shutdown-Pfad in always-on Firmware, daher bewusst ungenutzt)
+__attribute__((unused)) static void deinit_modules(void)
 {
     // Alle Module deinitialisieren (Mutex cleanup)
-    wifi_deinit();
+    wifi_module_deinit();
     stack_monitor_deinit();
     heap_monitor_deinit();
     servo_deinit();
@@ -257,10 +156,10 @@ static esp_err_t configure_deep_sleep_wakeup(void)
     rtc_gpio_pulldown_en(POWER_DEEP_SLEEP_WAKEUP_GPIO);
     rtc_gpio_pullup_dis(POWER_DEEP_SLEEP_WAKEUP_GPIO);
 
-    // GPIO Wake-Up für Deep Sleep aktivieren
-    esp_err_t sleep_ret = esp_sleep_enable_gpio_wakeup(
+    // GPIO Wake-Up für Deep Sleep aktivieren (ESP32-S3: ext1-Wakeup-API)
+    esp_err_t sleep_ret = esp_sleep_enable_ext1_wakeup_io(
         BIT(POWER_DEEP_SLEEP_WAKEUP_GPIO),
-        POWER_DEEP_SLEEP_WAKEUP_LEVEL ? ESP_GPIO_WAKEUP_GPIO_HIGH : ESP_GPIO_WAKEUP_GPIO_LOW
+        POWER_DEEP_SLEEP_WAKEUP_LEVEL ? ESP_EXT1_WAKEUP_ANY_HIGH : ESP_EXT1_WAKEUP_ANY_LOW
     );
 
     if (sleep_ret != ESP_OK) {
@@ -457,11 +356,10 @@ static void control_task(void *pvParameters)
                     // Watchdog deaktivieren vor Light Sleep
                     watchdog_stop();
 
-                    // Light Sleep mit GPIO Wake-Up konfigurieren
-                    esp_sleep_enable_gpio_wakeup(
-                        BIT(POWER_DEEP_SLEEP_WAKEUP_GPIO),
-                        POWER_DEEP_SLEEP_WAKEUP_LEVEL ? ESP_GPIO_WAKEUP_GPIO_HIGH : ESP_GPIO_WAKEUP_GPIO_LOW
-                    );
+                    // Light Sleep mit GPIO Wake-Up konfigurieren (IDF 6.0: pro-GPIO Level + globale Aktivierung)
+                    gpio_wakeup_enable(POWER_DEEP_SLEEP_WAKEUP_GPIO,
+                        POWER_DEEP_SLEEP_WAKEUP_LEVEL ? GPIO_INTR_HIGH_LEVEL : GPIO_INTR_LOW_LEVEL);
+                    esp_sleep_enable_gpio_wakeup();
 
                     // Light Sleep aktivieren
                     esp_light_sleep_start();
@@ -475,6 +373,9 @@ static void control_task(void *pvParameters)
 
                     // Watchdog deaktivieren vor Deep Sleep
                     watchdog_stop();
+
+                    // Deep Sleep Wake-Up per PIR-GPIO konfigurieren
+                    configure_deep_sleep_wakeup();
 
                     // Deep Sleep aktivieren
                     esp_deep_sleep_start();

@@ -3,7 +3,9 @@
 #include "error_log.h"
 #include "esp_log.h"
 #include "esp_err.h"
+#include "esp_system.h"
 #include "esp_heap_caps.h"
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -34,7 +36,7 @@ static void update_heap_info(void)
     xSemaphoreTake(heap_mutex, portMAX_DELAY);
     
     // Heap-Informationen abrufen
-    heap_info.total_heap = esp_get_total_heap_size();
+    heap_info.total_heap = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
     heap_info.free_heap = esp_get_free_heap_size();
     heap_info.min_free_heap = esp_get_minimum_free_heap_size();
     heap_info.largest_free_block = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);

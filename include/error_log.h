@@ -18,6 +18,7 @@
 #define ERR_WIFI_FAILURE        0x08
 #define ERR_OTA_FAILURE         0x09
 #define ERR_MEMORY_ALLOC        0x0A
+#define ERR_HEAP_LOW            0x0B
 
 typedef struct {
     char code[ERROR_CODE_LENGTH + 1];  // Fehlercode (z.B. "E0012345")

@@ -29,6 +29,9 @@ bool pir_motion_detected(void);
  */
 uint64_t pir_get_last_motion_time(void);
 
+// Maximale Anzahl gespeicherter Bewegungsereignisse (Ringbuffer)
+#define PIR_EVENT_MAX_COUNT 50
+
 /**
  * @brief Bewegungsereignis-Struktur
  */

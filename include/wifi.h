@@ -70,6 +70,6 @@ esp_err_t wifi_reset_credentials(void);
 /**
  * @brief WiFi-Modul deinitialisieren (Mutex cleanup)
  */
-void wifi_deinit(void);
+void wifi_module_deinit(void);
 
 #endif // WIFI_H

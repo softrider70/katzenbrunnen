@@ -37,6 +37,7 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <button class="tab-btn" onclick="showTab('logs')">Log-FIFO</button>
 <button class="tab-btn" onclick="showTab('codes')">Fehlercodes</button>
 <button class="tab-btn" onclick="showTab('wifi')">WiFi Setup</button>
+<button class="tab-btn" onclick="showTab('ota')">OTA</button>
 </div>
 
 <!-- DASHBOARD TAB -->
@@ -122,6 +123,26 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <div id="msg-wifi" class="msg"></div>
 </div>
 
+<!-- OTA TAB -->
+<div class="tab-content" id="ota">
+<p style="font-size:12px;margin:0 0 10px 0"><b>OTA Firmware Update:</b></p>
+<div style="margin:10px 0">
+<label style="font-size:12px;font-weight:bold">Firmware URL:</label>
+<input type="text" id="ota-url-input" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px" placeholder="http://server/firmware.bin">
+</div>
+<div class="buttons">
+<button class="btn-primary" onclick="startOta()">Update starten</button>
+<button class="btn-secondary" onclick="checkOtaStatus()">Status prüfen</button>
+<button class="btn-danger" onclick="otaRollback()">Rollback</button>
+</div>
+<div id="ota-status" style="margin:10px 0;padding:10px;background:#f3f4f6;border-radius:4px;font-size:12px">
+<p style="margin:0"><b>Status:</b> <span id="ota-status-text">-</span></p>
+<p style="margin:5px 0 0"><b>Phase:</b> <span id="ota-phase-text">-</span></p>
+<p style="margin:5px 0 0"><b>Nachricht:</b> <span id="ota-message-text">-</span></p>
+</div>
+<div id="msg-ota" class="msg"></div>
+</div>
+
 </div>
 
 <script>
@@ -132,6 +153,7 @@ document.querySelector('.tab-btn[onclick="showTab(\''+tabId+'\')"]').classList.a
 document.getElementById(tabId).classList.add('active');
 if(tabId==='dashboard')updateDashboard();
 if(tabId==='logs')loadLogs();
+if(tabId==='ota')checkOtaStatus();
 if(tabId==='codes')loadCodes();
 if(tabId==='wifi')loadWifiConfig();
 }
@@ -289,6 +311,32 @@ fetch('/api/servo_events/clear',{method:'POST'}).then(r=>r.json()).then(d=>{
 showMsg('servo-events',d.message,false);
 loadServoEvents();
 }).catch(e=>showMsg('servo-events','Fehler: '+e.message,true));
+}
+function checkOtaStatus(){
+fetch('/api/ota/status').then(r=>r.json()).then(d=>{
+document.getElementById('ota-status-text').textContent=d.in_progress?'Läuft':'Inaktiv';
+document.getElementById('ota-phase-text').textContent=d.phase||'-';
+document.getElementById('ota-message-text').textContent=d.message||'-';
+showMsg('ota','Status aktualisiert',false);
+}).catch(e=>showMsg('ota','Fehler: '+e.message,true));
+}
+function startOta(){
+const url=document.getElementById('ota-url-input').value;
+if(!url){
+showMsg('ota','URL eingeben',true);
+return;
+}
+fetch('/api/ota/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url})}).then(r=>r.json()).then(d=>{
+showMsg('ota',d.message,d.status!=='OK');
+checkOtaStatus();
+}).catch(e=>showMsg('ota','Fehler: '+e.message,true));
+}
+function otaRollback(){
+if(!confirm('Wirklich Rollback ausführen?'))return;
+fetch('/api/ota/rollback',{method:'POST'}).then(r=>r.json()).then(d=>{
+showMsg('ota',d.message,d.status!=='OK');
+checkOtaStatus();
+}).catch(e=>showMsg('ota','Fehler: '+e.message,true));
 }
 updateDashboard();
 </script>

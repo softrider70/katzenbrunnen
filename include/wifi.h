@@ -67,4 +67,9 @@ bool wifi_is_ap_mode_forced(void);
  */
 esp_err_t wifi_reset_credentials(void);
 
+/**
+ * @brief WiFi-Modul deinitialisieren (Mutex cleanup)
+ */
+void wifi_deinit(void);
+
 #endif // WIFI_H

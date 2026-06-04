@@ -41,4 +41,9 @@ uint8_t stack_monitor_get_all(stack_info_t *info, uint8_t max_tasks);
  */
 bool stack_monitor_has_warning(const char *task_name);
 
+/**
+ * @brief Stack-Monitor deinitialisieren (Mutex cleanup)
+ */
+void stack_monitor_deinit(void);
+
 #endif // STACK_MONITOR_H

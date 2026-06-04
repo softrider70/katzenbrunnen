@@ -137,3 +137,14 @@ bool heap_monitor_is_critical(void)
     
     return is_critical;
 }
+
+void heap_monitor_deinit(void)
+{
+    // Mutex löschen
+    if (heap_mutex != NULL) {
+        vSemaphoreDelete(heap_mutex);
+        heap_mutex = NULL;
+    }
+    
+    ESP_LOGI(TAG, "Heap-Monitor deinitialisiert");
+}

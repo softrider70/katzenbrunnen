@@ -165,3 +165,14 @@ esp_err_t ota_rollback(void)
     ESP_LOGW(TAG, "OTA Rollback ist in ESP-IDF 6.1 deaktiviert");
     return ESP_ERR_NOT_SUPPORTED;
 }
+
+void ota_deinit(void)
+{
+    // Mutex löschen
+    if (ota_mutex != NULL) {
+        vSemaphoreDelete(ota_mutex);
+        ota_mutex = NULL;
+    }
+    
+    ESP_LOGI(TAG, "OTA-Modul deinitialisiert");
+}

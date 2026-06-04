@@ -182,3 +182,14 @@ void servo_clear_events(void)
     memset(servo_events, 0, sizeof(servo_events));
     xSemaphoreGive(servo_mutex);
 }
+
+void servo_deinit(void)
+{
+    // Mutex löschen
+    if (servo_mutex != NULL) {
+        vSemaphoreDelete(servo_mutex);
+        servo_mutex = NULL;
+    }
+    
+    ESP_LOGI(TAG, "Servo-Modul deinitialisiert");
+}

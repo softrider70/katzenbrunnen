@@ -49,4 +49,9 @@ bool heap_monitor_has_warning(void);
  */
 bool heap_monitor_is_critical(void);
 
+/**
+ * @brief Heap-Monitor deinitialisieren (Mutex cleanup)
+ */
+void heap_monitor_deinit(void);
+
 #endif // HEAP_MONITOR_H

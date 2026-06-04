@@ -35,4 +35,9 @@ bool battery_is_critical(void);
  */
 esp_err_t battery_start_task(void);
 
+/**
+ * @brief Battery-Modul deinitialisieren (Mutex cleanup)
+ */
+void battery_deinit(void);
+
 #endif // BATTERY_H

@@ -527,3 +527,20 @@ esp_err_t wifi_reset_credentials(void)
     ESP_LOGI(TAG, "WiFi-Credentials gelöscht, AP-Modus wird erzwungen");
     return ESP_OK;
 }
+
+void wifi_deinit(void)
+{
+    // Mutex löschen
+    if (wifi_mutex != NULL) {
+        vSemaphoreDelete(wifi_mutex);
+        wifi_mutex = NULL;
+    }
+    
+    // Event-Group löschen
+    if (wifi_event_group != NULL) {
+        vEventGroupDelete(wifi_event_group);
+        wifi_event_group = NULL;
+    }
+    
+    ESP_LOGI(TAG, "WiFi-Modul deinitialisiert");
+}

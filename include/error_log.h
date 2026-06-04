@@ -70,4 +70,9 @@ void error_log_clear(void);
  */
 void error_log_generate_code(char *code, uint8_t error_id, uint64_t timestamp_ms);
 
+/**
+ * @brief Error-Log deinitialisieren (Mutex cleanup)
+ */
+void error_log_deinit(void);
+
 #endif // ERROR_LOG_H

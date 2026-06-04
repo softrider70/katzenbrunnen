@@ -135,3 +135,14 @@ bool stack_monitor_has_warning(const char *task_name)
     
     return has_warning;
 }
+
+void stack_monitor_deinit(void)
+{
+    // Mutex löschen
+    if (stack_mutex != NULL) {
+        vSemaphoreDelete(stack_mutex);
+        stack_mutex = NULL;
+    }
+    
+    ESP_LOGI(TAG, "Stack-Monitor deinitialisiert");
+}

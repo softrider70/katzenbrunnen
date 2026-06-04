@@ -204,3 +204,14 @@ bool battery_is_critical(void)
     float cell_voltage = voltage / BATTERY_CELLS;
     return (cell_voltage < BATTERY_CRITICAL_VOLTAGE);
 }
+
+void battery_deinit(void)
+{
+    // Mutex löschen
+    if (battery_mutex != NULL) {
+        vSemaphoreDelete(battery_mutex);
+        battery_mutex = NULL;
+    }
+    
+    ESP_LOGI(TAG, "Battery-Modul deinitialisiert");
+}

@@ -60,4 +60,9 @@ uint16_t servo_get_events(servo_event_t *events, uint16_t max_count);
  */
 void servo_clear_events(void);
 
+/**
+ * @brief Servo-Modul deinitialisieren (Mutex cleanup)
+ */
+void servo_deinit(void);
+
 #endif // SERVO_H

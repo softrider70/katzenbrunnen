@@ -111,8 +111,145 @@ static esp_err_t init_hardware(void)
     if (ret != ESP_OK) return ret;
     
     ESP_LOGI(TAG, "Hardware initialisiert");
+    return ESP_OK;
+}
 
-    // Deep Sleep Wake-Up konfigurieren
+void deinit_hardware(void)
+{
+    // Mutex löschen
+    if (state_mutex != NULL) {
+        vSemaphoreDelete(state_mutex);
+        state_mutex = NULL;
+    }
+    
+    ESP_LOGI(TAG, "Hardware deinitialisiert");
+}
+
+// ============================================================================
+// NVS Initialisierung
+// ============================================================================
+static esp_err_t init_nvs(void)
+{
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_LOGW(TAG, "NVS Flash leer oder Version geändert, formatiere...");
+        ret = nvs_flash_erase();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "NVS Flash-Erase fehlgeschlagen: %s", esp_err_to_name(ret));
+            return ret;
+        }
+        ret = nvs_flash_init();
+    }
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "NVS Flash-Init fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    ESP_LOGI(TAG, "NVS initialisiert");
+    return ESP_OK;
+}
+
+// ============================================================================
+// SNTP Initialisierung
+// ============================================================================
+static void initialize_sntp(void)
+{
+    ESP_LOGI(TAG, "Initialisiere SNTP");
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setservername(0, "pool.ntp.org");
+    sntp_init();
+}
+
+// ============================================================================
+// Hardware Initialisierung
+// ============================================================================
+static esp_err_t init_hardware(void)
+{
+    esp_err_t ret;
+    
+    // GPIO für Servo konfigurieren
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << SERVO_GPIO),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = 0,
+        .pull_down_en = 0,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    ret = gpio_config(&io_conf);
+    if (ret != ESP_OK) return ret;
+    
+    // GPIO für PIR konfigurieren
+    io_conf.pin_bit_mask = (1ULL << PIR_GPIO);
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.pull_down_en = 0;
+    io_conf.pull_up_en = 1;
+    ret = gpio_config(&io_conf);
+    if (ret != ESP_OK) return ret;
+    
+    // Mutex erstellen
+    state_mutex = xSemaphoreCreateMutex();
+    if (state_mutex == NULL) {
+        ESP_LOGE(TAG, "Mutex-Erstellung fehlgeschlagen");
+        return ESP_FAIL;
+    }
+    
+    // Module initialisieren
+    ret = error_log_init();
+    if (ret != ESP_OK) return ret;
+    
+    ret = pir_init();
+    if (ret != ESP_OK) return ret;
+    
+    ret = servo_init();
+    if (ret != ESP_OK) return ret;
+    
+    ret = battery_init();
+    if (ret != ESP_OK) return ret;
+    
+    ret = stack_monitor_init();
+    if (ret != ESP_OK) return ret;
+    
+    ret = heap_monitor_init();
+    if (ret != ESP_OK) return ret;
+    
+    ret = watchdog_init();
+    if (ret != ESP_OK) return ret;
+    
+    ret = wifi_init();
+    if (ret != ESP_OK) return ret;
+    
+    ret = web_server_init();
+    if (ret != ESP_OK) return ret;
+    
+    ret = ota_init();
+    if (ret != ESP_OK) return ret;
+    
+    ESP_LOGI(TAG, "Hardware initialisiert");
+    return ESP_OK;
+}
+
+// ============================================================================
+// Deinitialisierung
+// ============================================================================
+static void deinit_modules(void)
+{
+    // Alle Module deinitialisieren (Mutex cleanup)
+    wifi_deinit();
+    stack_monitor_deinit();
+    heap_monitor_deinit();
+    servo_deinit();
+    ota_deinit();
+    error_log_deinit();
+    battery_deinit();
+    deinit_hardware();
+    
+    ESP_LOGI(TAG, "Alle Module deinitialisiert");
+}
+
+// ============================================================================
+// Deep Sleep Wake-Up konfigurieren
+// ============================================================================
+static esp_err_t configure_deep_sleep_wakeup(void)
+{
 #if POWER_DEEP_SLEEP_ENABLE
     // GPIO4 als RTC GPIO konfigurieren für Deep Sleep Wake-Up
     rtc_gpio_init(POWER_DEEP_SLEEP_WAKEUP_GPIO);
@@ -135,7 +272,6 @@ static esp_err_t init_hardware(void)
              POWER_DEEP_SLEEP_WAKEUP_GPIO,
              POWER_DEEP_SLEEP_WAKEUP_LEVEL ? "HIGH" : "LOW");
 #endif
-
     return ESP_OK;
 }
 

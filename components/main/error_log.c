@@ -139,3 +139,14 @@ void error_log_clear(void)
     
     ESP_LOGI(TAG, "Error-Log geleert");
 }
+
+void error_log_deinit(void)
+{
+    // Mutex löschen
+    if (error_log_mutex != NULL) {
+        vSemaphoreDelete(error_log_mutex);
+        error_log_mutex = NULL;
+    }
+    
+    ESP_LOGI(TAG, "Error-Log deinitialisiert");
+}

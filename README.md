@@ -327,6 +327,32 @@ idf.py fullclean
 idf.py build
 ```
 
+## Resource Management
+
+### Mutex Cleanup
+Alle Module mit Mutex-Synchronisation haben entsprechende `*_deinit()` Funktionen:
+- `wifi_deinit()` - WiFi-Modul
+- `stack_monitor_deinit()` - Stack-Monitor
+- `heap_monitor_deinit()` - Heap-Monitor
+- `servo_deinit()` - Servo-Modul
+- `ota_deinit()` - OTA-Modul
+- `error_log_deinit()` - Error-Log
+- `battery_deinit()` - Battery-Modul
+- `deinit_hardware()` - Hardware-State Mutex
+
+Diese Funktionen löschen die Mutexes und verhindern Memory Leaks. Für Embedded-Systeme werden diese Funktionen typischerweise nur bei System-Reset oder Shutdown aufgerufen.
+
+### Task Lifecycle
+Die folgenden FreeRTOS-Tasks laufen bis zum System-Reset:
+- `control_task` - Hauptsteuerung (PIR, Servo, Sleep)
+- `wifi_task` - WiFi-Management
+- `stack_monitor_task` - Stack-Überwachung
+- `heap_monitor_task` - Heap-Überwachung
+- `battery_task` - Batterieüberwachung
+- `dns_server_task` - DNS-Server
+
+Tasks werden nicht explizit gelöscht (`vTaskDelete`), da sie für den gesamten Betrieb des Systems benötigt werden. Dies ist für Embedded-Systeme akzeptabel und üblich.
+
 **Flash doesn't work:**
 - Check USB connection: `idf.py monitor --no-reset`
 - Select port manually: `idf.py -p /dev/ttyUSB0 flash`

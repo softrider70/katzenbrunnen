@@ -34,4 +34,9 @@ esp_err_t ota_get_status(bool *in_progress, bool *last_result_ok, char *phase, c
  */
 esp_err_t ota_rollback(void);
 
+/**
+ * @brief OTA-Modul deinitialisieren (Mutex cleanup)
+ */
+void ota_deinit(void);
+
 #endif // OTA_H

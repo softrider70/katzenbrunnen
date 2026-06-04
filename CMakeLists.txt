@@ -1,22 +1,8 @@
-cmake_minimum_required(VERSION 3.5)
-
-project(katzenbrunnen C)
-
-set(ESP_PLATFORM esp32)
-set(EXTRA_CMAKE_MODULES ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+cmake_minimum_required(VERSION 3.16)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
-# Include FreeRTOS configuration
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+project(katzenbrunnen)
 
-# Source files
-set(SRCS
-    src/main.c
-)
-
-# Project setup
-project_start(katzenbrunnen)
-idf_component_register(SRCS ${SRCS}
-                       INCLUDE_DIRS include)
-project_end()
+# Test-Komponente registrieren
+set(EXTRA_COMPONENT_DIRS "test")

@@ -27,8 +27,9 @@ Automatischer Katzenbrunnen für Katzen zur Selbstversorgung mit Wasser. Das Sys
 - **OTA-Task (Core 1):** Firmware-Update-Management
 - **Spannungs-Monitor-Task (Core 0):** Batterieüberwachung
 
-- **Board:** ESP32-S3 (Dual-Core, 512KB SRAM, PSRAM)
-- **Version:** 0.1.0
+- **Board:** ESP32-S3-WROOM-1 (Dual-Core, 512KB SRAM, 8MB PSRAM, 16MB Flash)
+- **ESP-IDF:** 6.1
+- **Version:** 0.1.23
 - **Status:** Entwicklungsphase
 
 ## Hardware-Anschluss
@@ -71,7 +72,7 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - **Tabelle** mit Bewegungsereignissen (Zeitstempel, Dauer)
 - **Tabelle** mit Öffnungszeiten (Start, Ende, Dauer)
 - **Spannungsanzeige** (Aktuelle Spannung, Prozent, Status)
-- **OTA-Steuerbereich** für Firmware-Updates
+- **OTA-Steuerbereich** für Firmware-Updates (ESP-IDF 6.1: aktuell deaktiviert)
 - **WiFi-Konfiguration** für Netzwerk-Setup
 
 ### Stromspar-Modi:
@@ -83,19 +84,19 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 
 ```
 katzenbrunnen/
-├── src/
-│   ├── main.c              Main application entry point
-│   ├── pir.c               PIR-Sensor Modul (Bewegungserkennung)
-│   ├── servo.c             Servo-Steuerung Modul (Wasserhahn)
-│   ├── battery.c           Batterie-Monitor Modul (Spannungsmessung)
-│   ├── error_log.c         Fehler-Logging Modul
-│   ├── stack_monitor.c     Stack-Überwachungs Modul
-│   ├── watchdog.c          Watchdog Modul
-│   ├── wifi.c              WiFi-Management Modul
-│   ├── web_server.c        Web-Server Modul (HTTP-Handler)
-│   ├── ota.c               OTA-Update Modul
-│   ├── power_mgmt.c        Power-Management Modul (Stromspar)
-│   └── CMakeLists.txt      Component build config
+├── components/
+│   └── main/
+│       ├── main.c              Main application entry point
+│       ├── pir.c               PIR-Sensor Modul (Bewegungserkennung)
+│       ├── servo.c             Servo-Steuerung Modul (Wasserhahn)
+│       ├── battery.c           Batterie-Monitor Modul (Spannungsmessung)
+│       ├── error_log.c         Fehler-Logging Modul
+│       ├── stack_monitor.c     Stack-Überwachungs Modul
+│       ├── watchdog.c          Watchdog Modul
+│       ├── wifi.c              WiFi-Management Modul
+│       ├── web_server.c        Web-Server Modul (HTTP-Handler)
+│       ├── ota.c               OTA-Update Modul (ESP-IDF 6.1 Stub)
+│       └── CMakeLists.txt      Component build config
 ├── include/
 │   ├── config.h            Hardware-Konfiguration (Pins, Parameter)
 │   ├── pir.h               PIR-Sensor Header
@@ -106,10 +107,19 @@ katzenbrunnen/
 │   ├── watchdog.h          Watchdog Header
 │   ├── wifi.h              WiFi-Management Header
 │   ├── web_server.h        Web-Server Header
-│   ├── ota.h               OTA-Update Header
-│   └── power_mgmt.h        Power-Management Header
+│   └── ota.h               OTA-Update Header
+├── tools/
+│   ├── build-and-commit.ps1     Build mit automatischer Buildnummer
+│   ├── flash-mode.ps1           USB/OTA Flash-Workflow
+│   └── increment_build.py       Buildnummer-Generierung
 ├── CMakeLists.txt          Project build config
 ├── sdkconfig               Build configuration (auto-generated)
+├── partitions.csv          OTA-Partitionierung (16MB Flash)
+├── activate-esp-idf.ps1    ESP-IDF Umgebung aktivieren
+├── ota.ps1                 OTA-Start-Skript
+├── ota_upload.ps1          OTA-Upload-Skript
+├── ota_request.json        OTA-Request-Template
+├── README_OTA_SAFETY.md    OTA-Sicherheitsdokument
 └── README.md               This file
 ```
 
@@ -122,12 +132,11 @@ katzenbrunnen/
 - **servo.c/h:** Servo PWM-Initialisierung, Positionskontrolle, Wasserhahn-Steuerung
 - **battery.c/h:** ADC-Initialisierung, Spannungsmessung, Prozentberechnung
 - **error_log.c/h:** Fehler-Logging mit Ringbuffer, Fehlercode-Generierung
-- **stack_monitor.c/h:** Stack-Überwachung für alle Tasks, Warnung bei >60%
+- **stack_monitor.c/h:** Stack-Überwachung für bekannte Tasks (ESP-IDF 6.1 kompatibel)
 - **watchdog.c/h:** ESP32 Task Watchdog, Emergency-Close bei Trigger
-- **wifi.c/h:** WiFi-Verbindungsmanagement, AP-Mode, Credential-Handling
+- **wifi.c/h:** WiFi-Verbindungsmanagement, Credential-Handling, AP-Fallback
 - **web_server.c/h:** HTTP-Server, API-Endpunkte, HTML/JSON-Generierung
-- **ota.c/h:** OTA-Update-Logik, Health-Check, Rollback
-- **power_mgmt.c/h:** WiFi Sleep, Deep Sleep, Batterie-Schutz
+- **ota.c/h:** OTA-Update-Logik (ESP-IDF 6.1 Stub - API-Änderungen)
 
 **Regeln:**
 - Jedes Modul hat eigene .c und .h Dateien
@@ -185,7 +194,7 @@ Die wichtigsten Parameter können in `include/config.h` angepasst werden:
 #define SERVO_MIN_PULSE_US   500       // Minimale Pulsweite
 #define SERVO_MAX_PULSE_US   2400      // Maximale Pulsweite
 #define SERVO_NEUTRAL_US     1500      // Neutralposition
-#define SERO_FREQUENCY_HZ    50        // PWM Frequenz
+#define SERVO_FREQUENCY_HZ   50        // PWM Frequenz
 ```
 
 ### Board Selection
@@ -237,6 +246,58 @@ Use Copilot skills to extend functionality:
 - **`PROJECT.md`** — Detailed project specifications
 - **`sdkconfig`** — Build configuration (auto-generated)
 - **`include/config.h`** — Hardware pin mappings
+
+## Unit Tests
+
+Das Projekt enthält Unit Tests für die wichtigsten Module (PIR, Servo, Battery) basierend auf dem ESP-IDF Unity Test Framework.
+
+### Test-Struktur
+```
+test/
+├── CMakeLists.txt          # Test-Konfiguration
+├── test_pir.c              # PIR-Sensor Tests
+├── test_servo.c            # Servo-Steuerung Tests
+└── test_battery.c          # Battery-Monitor Tests
+```
+
+### Tests ausführen
+```bash
+# Alle Tests bauen und flashen
+idf.py build
+idf.py -p COM3 flash monitor
+
+# Spezifische Test-Komponente ausführen
+idf.py -p COM3 flash monitor --test-component pir
+idf.py -p COM3 flash monitor --test-component servo
+idf.py -p COM3 flash monitor --test-component battery
+```
+
+### Test-Ergebnisse
+Die Test-Results werden im Serial Monitor angezeigt:
+```
+Test PIR Initialisierung passed
+Test PIR Task Start passed
+Test PIR Bewegungserkennung Status passed
+3/3 tests passed
+```
+
+### Neue Tests hinzufügen
+1. Neue Test-Datei in `test/` erstellen (z.B. `test_wifi.c`)
+2. Test-Funktionen mit `TEST_CASE` Makro definieren
+3. Datei zu `test/CMakeLists.txt` hinzufügen
+4. Build und flashen
+
+Beispiel:
+```c
+#include "unity.h"
+#include "wifi.h"
+
+TEST_CASE("WiFi Initialisierung", "[wifi]")
+{
+    esp_err_t ret = wifi_init();
+    TEST_ASSERT_EQUAL(ESP_OK, ret);
+}
+```
 
 ## Troubleshooting
 

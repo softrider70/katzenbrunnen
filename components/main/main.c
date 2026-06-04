@@ -12,6 +12,9 @@
 #include "esp_timer.h"
 #include "nvs_flash.h"
 #include "nvs.h"
+#include "esp_sntp.h"
+#include "esp_netif.h"
+#include "esp_wifi.h"
 #include "config.h"
 #include "pir.h"
 #include "servo.h"
@@ -27,6 +30,24 @@ static const char *TAG = "katzenbrunnen";
 
 // NVS handle für persistenten Speicher
 nvs_handle_t g_nvs_handle;
+
+// WiFi Sleep Status
+static bool wifi_sleep_active = false;
+
+// SNTP Zeit-Synchronisation
+static void time_sync_notification_cb(struct timeval *tv)
+{
+    ESP_LOGI(TAG, "Zeit synchronisiert: %s", ctime(&tv->tv_sec));
+}
+
+static void initialize_sntp(void)
+{
+    ESP_LOGI(TAG, "Initialisiere SNTP");
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setservername(0, "pool.ntp.org");
+    sntp_set_time_sync_notification_cb(time_sync_notification_cb);
+    sntp_init();
+}
 
 // Status-Variablen (einzige Wahrheit für "Ventil offen" ist das servo-Modul)
 static uint32_t activation_count = 0;
@@ -293,6 +314,30 @@ static void control_task(void *pvParameters)
             esp_deep_sleep_start();
         }
 
+        // WiFi Sleep Prüfung (basierend auf Uhrzeit)
+        time_t now_sec = time(NULL);
+        struct tm *tm_info = localtime(&now_sec);
+        int current_hour = tm_info->tm_hour;
+
+        bool should_sleep = false;
+        if (WIFI_SLEEP_START_HOUR > WIFI_SLEEP_END_HOUR) {
+            // Sleep-Fenster über Mitternacht (z.B. 22:00 - 06:00)
+            should_sleep = (current_hour >= WIFI_SLEEP_START_HOUR || current_hour < WIFI_SLEEP_END_HOUR);
+        } else {
+            // Sleep-Fenster innerhalb eines Tages (z.B. 02:00 - 06:00)
+            should_sleep = (current_hour >= WIFI_SLEEP_START_HOUR && current_hour < WIFI_SLEEP_END_HOUR);
+        }
+
+        if (should_sleep && !wifi_sleep_active) {
+            ESP_LOGI(TAG, "WiFi Sleep aktivieren (%d:00 - %d:00)", WIFI_SLEEP_START_HOUR, WIFI_SLEEP_END_HOUR);
+            wifi_set_sleep(true);
+            wifi_sleep_active = true;
+        } else if (!should_sleep && wifi_sleep_active) {
+            ESP_LOGI(TAG, "WiFi Sleep deaktivieren");
+            wifi_set_sleep(false);
+            wifi_sleep_active = false;
+        }
+
         watchdog_feed();
         vTaskDelay(pdMS_TO_TICKS(100));
     }
@@ -371,8 +416,11 @@ void app_main(void)
     ESP_LOGI(TAG, "Chip-Revision: %d", chip_info.revision);
     ESP_LOGI(TAG, "Freier Heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
     ESP_LOGI(TAG, "Minimal freier Heap: %lu bytes", (unsigned long)esp_get_minimum_free_heap_size());
-    ESP_LOGI(TAG, "ESP32-S3 erkannt: %s", 
+    ESP_LOGI(TAG, "ESP32-S3 erkannt: %s",
              strcmp(CONFIG_IDF_TARGET, "esp32s3") == 0 ? "Ja" : "Nein");
+
+    // SNTP für Zeit-Synchronisation initialisieren
+    initialize_sntp();
     
     // Module-Tasks starten
     if (pir_start_task() != ESP_OK) {

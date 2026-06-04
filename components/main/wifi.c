@@ -30,7 +30,6 @@ typedef struct {
     char ssid[32];
     uint8_t retry_count;
     uint32_t last_error_code;
-    bool sleep_active;
 } wifi_state_t;
 
 static wifi_state_t wifi_state = {
@@ -39,8 +38,7 @@ static wifi_state_t wifi_state = {
     .ap_mode_forced = false,
     .ssid = "",
     .retry_count = 0,
-    .last_error_code = 0,
-    .sleep_active = false
+    .last_error_code = 0
 };
 
 static SemaphoreHandle_t wifi_mutex = NULL;
@@ -475,30 +473,6 @@ esp_err_t wifi_reconnect(void)
     esp_wifi_connect();
     
     return ESP_OK;
-}
-
-void wifi_set_sleep(bool enable)
-{
-    xSemaphoreTake(wifi_mutex, portMAX_DELAY);
-    wifi_state.sleep_active = enable;
-    xSemaphoreGive(wifi_mutex);
-    
-    if (enable) {
-        esp_wifi_stop();
-        ESP_LOGI(TAG, "WiFi Sleep aktiviert");
-    } else {
-        esp_wifi_start();
-        ESP_LOGI(TAG, "WiFi Sleep deaktiviert");
-    }
-}
-
-bool wifi_is_sleep_active(void)
-{
-    bool active;
-    xSemaphoreTake(wifi_mutex, portMAX_DELAY);
-    active = wifi_state.sleep_active;
-    xSemaphoreGive(wifi_mutex);
-    return active;
 }
 
 bool wifi_is_ap_mode_forced(void)

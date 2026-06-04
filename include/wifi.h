@@ -56,18 +56,6 @@ esp_err_t wifi_set_credentials(const char *ssid, const char *password);
 esp_err_t wifi_reconnect(void);
 
 /**
- * @brief WiFi-Sleep aktivieren/deaktivieren
- * @param enable true für Sleep, false für aktiv
- */
-void wifi_set_sleep(bool enable);
-
-/**
- * @brief WiFi-Sleep-Status abrufen
- * @return true wenn Sleep aktiv, false sonst
- */
-bool wifi_is_sleep_active(void);
-
-/**
  * @brief AP-Modus-Status abrufen
  * @return true wenn AP-Modus erzwungen ist, false sonst
  */

@@ -6,12 +6,14 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/portmacro.h"
 #include <string.h>
 
 static const char *TAG = "servo";
 
 static bool valve_open = false;
 static SemaphoreHandle_t servo_mutex = NULL;
+static portMUX_TYPE servo_mux = portMUX_INITIALIZER_UNLOCKED;  // Critical Section für emergency_close
 
 // Öffnungsereignisse Ringbuffer
 #define SERVO_EVENT_MAX_COUNT 50
@@ -144,8 +146,11 @@ bool servo_is_valve_open(void)
 
 void servo_emergency_close(void)
 {
-    // Direkter Aufruf ohne Mutex für kritische Situationen
+    // Critical Section für kritische Situationen (Race-Condition vermeiden)
+    portENTER_CRITICAL(&servo_mux);
     valve_open = false;
+    portEXIT_CRITICAL(&servo_mux);
+
     servo_set_position(SERVO_CLOSE_ANGLE_US);
     ESP_LOGE(TAG, "EMERGENCY: Wasserhahn geschlossen");
 }

@@ -287,29 +287,31 @@ static void control_task(void *pvParameters)
             if (inactivity_ms >= POWER_DEEP_SLEEP_TIMEOUT_MS) {
                 // Prüfen ob nachts (Deep Sleep) oder tagsüber (Light Sleep)
                 time_t now_sec = time(NULL);
-                struct tm *tm_info = localtime(&now_sec);
-                int current_hour = tm_info->tm_hour;
 
-                bool is_night = false;
-                if (WIFI_SLEEP_START_HOUR > WIFI_SLEEP_END_HOUR) {
-                    // Sleep-Fenster über Mitternacht (z.B. 22:00 - 06:00)
-                    is_night = (current_hour >= WIFI_SLEEP_START_HOUR || current_hour < WIFI_SLEEP_END_HOUR);
+                // Wenn Zeit nicht synchronisiert (Epoch < 1000000), immer Light Sleep verwenden
+                // damit Katzen Wasser bekommen auch ohne korrekte Zeit
+                bool use_light_sleep = false;
+                if (now_sec < 1000000) {
+                    ESP_LOGW(TAG, "Zeit nicht synchronisiert -> Light Sleep (Katzen müssen Wasser bekommen)");
+                    use_light_sleep = true;
                 } else {
-                    // Sleep-Fenster innerhalb eines Tages (z.B. 02:00 - 06:00)
-                    is_night = (current_hour >= WIFI_SLEEP_START_HOUR && current_hour < WIFI_SLEEP_END_HOUR);
+                    struct tm *tm_info = localtime(&now_sec);
+                    int current_hour = tm_info->tm_hour;
+
+                    bool is_night = false;
+                    if (WIFI_SLEEP_START_HOUR > WIFI_SLEEP_END_HOUR) {
+                        // Sleep-Fenster über Mitternacht (z.B. 22:00 - 06:00)
+                        is_night = (current_hour >= WIFI_SLEEP_START_HOUR || current_hour < WIFI_SLEEP_END_HOUR);
+                    } else {
+                        // Sleep-Fenster innerhalb eines Tages (z.B. 02:00 - 06:00)
+                        is_night = (current_hour >= WIFI_SLEEP_START_HOUR && current_hour < WIFI_SLEEP_END_HOUR);
+                    }
+
+                    use_light_sleep = !is_night;
                 }
 
-                if (is_night) {
-                    ESP_LOGI(TAG, "Inaktivität >= %d ms (Nacht) -> Deep Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
-                    ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
-
-                    // Watchdog deaktivieren vor Deep Sleep
-                    watchdog_stop();
-
-                    // Deep Sleep aktivieren
-                    esp_deep_sleep_start();
-                } else {
-                    ESP_LOGI(TAG, "Inaktivität >= %d ms (Tag) -> Light Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
+                if (use_light_sleep) {
+                    ESP_LOGI(TAG, "Inaktivität >= %d ms -> Light Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
                     ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
 
                     // Watchdog deaktivieren vor Light Sleep
@@ -323,6 +325,19 @@ static void control_task(void *pvParameters)
 
                     // Light Sleep aktivieren
                     esp_light_sleep_start();
+
+                    // Watchdog nach Light Sleep neu starten
+                    watchdog_start();
+                    watchdog_subscribe();
+                } else {
+                    ESP_LOGI(TAG, "Inaktivität >= %d ms (Nacht) -> Deep Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
+                    ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
+
+                    // Watchdog deaktivieren vor Deep Sleep
+                    watchdog_stop();
+
+                    // Deep Sleep aktivieren
+                    esp_deep_sleep_start();
                 }
             }
         }

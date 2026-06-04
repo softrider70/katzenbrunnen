@@ -125,6 +125,7 @@
 #define WIFI_AP_PASSWORD        "katzen123"
 #define WIFI_AP_IP              "192.168.4.1"  // AP IP-Adresse
 #define WIFI_HOSTNAME           "katzenbrunnen"  // mDNS Hostname
+#define WIFI_TX_POWER           14  // WiFi Sendeleistung in dBm (0-20, Standard: 14 für 7m Entfernung)
 
 // ============================================================================
 // Web Server Configuration

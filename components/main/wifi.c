@@ -313,6 +313,20 @@ esp_err_t wifi_start_task(void)
         return ret;
     }
 
+    // WiFi Sendeleistung konfigurieren
+    // ESP32-S3: 0-84 entspricht ~0-20dBm (Faktor ~4.2)
+    int8_t tx_power_dbm = WIFI_TX_POWER;
+    int8_t tx_power_hw = (int8_t)(tx_power_dbm * 4.2f);
+    if (tx_power_hw < 0) tx_power_hw = 0;
+    if (tx_power_hw > 84) tx_power_hw = 84;
+
+    ret = esp_wifi_set_max_tx_power(tx_power_hw);
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "WiFi Sendeleistung auf %ddBm gesetzt (HW: %d)", tx_power_dbm, tx_power_hw);
+    } else {
+        ESP_LOGW(TAG, "WiFi Sendeleistung konnte nicht gesetzt werden: %s", esp_err_to_name(ret));
+    }
+
     // DNS-Server starten wenn AP-Modus erzwungen ist
     xSemaphoreTake(wifi_mutex, portMAX_DELAY);
     bool ap_forced = wifi_state.ap_mode_forced;

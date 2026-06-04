@@ -95,6 +95,7 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - **Stromersparnis:** Deep Sleep verbraucht ~10-20µA vs ~100mA im aktiven Modus
 - **Batterie-Abschaltung:** Bei kritischer Batteriespannung (<3.2V/Zelle) wird Wasserhahn geschlossen und Deep Sleep aktiviert
 - **WiFi Sleep:** WLAN wird zwischen 22:00 und 06:00 Uhr deaktiviert (konfigurierbar über WIFI_SLEEP_START_HOUR und WIFI_SLEEP_END_HOUR)
+- **WiFi Sendeleistung:** Reduzierte Sendeleistung (14dBm Standard) für ~30-40% Stromersparnis bei der Übertragung (konfigurierbar über WIFI_TX_POWER)
 
 ## Project Structure
 

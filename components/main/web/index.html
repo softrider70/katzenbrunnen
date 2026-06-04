@@ -62,6 +62,28 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <button class="btn-secondary" onclick="loadLogs()">Aktualisieren</button>
 </div>
 <div id="msg-logs" class="msg"></div>
+
+<p style="font-size:12px;margin:20px 0 10px 0"><b>Bewegungsereignisse:</b></p>
+<table class="code-table">
+<thead><tr><th>Zeitstempel</th><th>Dauer (ms)</th></tr></thead>
+<tbody id="pir-events-body"></tbody>
+</table>
+<div class="buttons">
+<button class="btn-secondary" onclick="loadPirEvents()">Aktualisieren</button>
+<button class="btn-danger" onclick="clearPirEvents()">Löschen</button>
+</div>
+<div id="msg-pir-events" class="msg"></div>
+
+<p style="font-size:12px;margin:20px 0 10px 0"><b>Öffnungszeiten:</b></p>
+<table class="code-table">
+<thead><tr><th>Zeitstempel</th><th>Dauer (ms)</th></tr></thead>
+<tbody id="servo-events-body"></tbody>
+</table>
+<div class="buttons">
+<button class="btn-secondary" onclick="loadServoEvents()">Aktualisieren</button>
+<button class="btn-danger" onclick="clearServoEvents()">Löschen</button>
+</div>
+<div id="msg-servo-events" class="msg"></div>
 </div>
 
 <!-- ERROR CODES TAB -->
@@ -223,6 +245,50 @@ if(d.status==='OK'){
 setTimeout(()=>{location.reload();},2000);
 }
 }).catch(e=>showMsg('wifi','Fehler: '+e.message,true));
+}
+function loadPirEvents(){
+fetch('/api/pir_events').then(r=>r.json()).then(d=>{
+const tbody=document.getElementById('pir-events-body');
+tbody.innerHTML='';
+if(d.events&&d.events.length>0){
+d.events.forEach(e=>{
+const tr=document.createElement('tr');
+tr.innerHTML='<td>'+e.timestamp+'</td><td>'+e.duration_ms+'</td>';
+tbody.appendChild(tr);
+});
+showMsg('pir-events',d.count+' Ereignisse geladen',false);
+}else{
+showMsg('pir-events','Keine Ereignisse',false);
+}
+}).catch(e=>showMsg('pir-events','Fehler: '+e.message,true));
+}
+function clearPirEvents(){
+fetch('/api/pir_events/clear',{method:'POST'}).then(r=>r.json()).then(d=>{
+showMsg('pir-events',d.message,false);
+loadPirEvents();
+}).catch(e=>showMsg('pir-events','Fehler: '+e.message,true));
+}
+function loadServoEvents(){
+fetch('/api/servo_events').then(r=>r.json()).then(d=>{
+const tbody=document.getElementById('servo-events-body');
+tbody.innerHTML='';
+if(d.events&&d.events.length>0){
+d.events.forEach(e=>{
+const tr=document.createElement('tr');
+tr.innerHTML='<td>'+e.timestamp+'</td><td>'+e.duration_ms+'</td>';
+tbody.appendChild(tr);
+});
+showMsg('servo-events',d.count+' Ereignisse geladen',false);
+}else{
+showMsg('servo-events','Keine Ereignisse',false);
+}
+}).catch(e=>showMsg('servo-events','Fehler: '+e.message,true));
+}
+function clearServoEvents(){
+fetch('/api/servo_events/clear',{method:'POST'}).then(r=>r.json()).then(d=>{
+showMsg('servo-events',d.message,false);
+loadServoEvents();
+}).catch(e=>showMsg('servo-events','Fehler: '+e.message,true));
 }
 updateDashboard();
 </script>

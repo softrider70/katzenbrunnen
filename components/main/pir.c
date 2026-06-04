@@ -7,6 +7,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <string.h>
 
 static const char *TAG = "pir";
 
@@ -14,6 +15,13 @@ static const char *TAG = "pir";
 static portMUX_TYPE pir_mux = portMUX_INITIALIZER_UNLOCKED;
 static volatile uint64_t last_motion_time = 0;
 static bool isr_service_installed = false;
+
+// Bewegungsereignisse Ringbuffer
+#define PIR_EVENT_MAX_COUNT 50
+static pir_event_t pir_events[PIR_EVENT_MAX_COUNT];
+static uint16_t pir_event_index = 0;
+static uint16_t pir_event_count = 0;
+static uint64_t motion_start_time = 0;  // Beginn der aktuellen Bewegungsphase
 
 // PIR-Bewegungserkennung im Erkennungsfenster (PIR_DETECTION_WINDOW_MS)
 #define PIR_DETECTION_WINDOW_US (PIR_DETECTION_WINDOW_MS * 1000ULL)
@@ -90,4 +98,51 @@ uint64_t pir_get_last_motion_time(void)
     t = last_motion_time;
     portEXIT_CRITICAL(&pir_mux);
     return t;
+}
+
+/**
+ * @brief Bewegungsereignis hinzufügen (wird von control_task aufgerufen)
+ */
+void pir_add_event(uint64_t duration_ms)
+{
+    uint64_t timestamp_ms = esp_timer_get_time() / 1000;
+
+    portENTER_CRITICAL(&pir_mux);
+    pir_event_t *event = &pir_events[pir_event_index];
+    event->timestamp_ms = timestamp_ms;
+    event->duration_ms = duration_ms;
+
+    pir_event_index = (pir_event_index + 1) % PIR_EVENT_MAX_COUNT;
+    if (pir_event_count < PIR_EVENT_MAX_COUNT) {
+        pir_event_count++;
+    }
+    portEXIT_CRITICAL(&pir_mux);
+}
+
+uint16_t pir_get_events(pir_event_t *events, uint16_t max_count)
+{
+    if (events == NULL || max_count == 0) {
+        return 0;
+    }
+
+    portENTER_CRITICAL(&pir_mux);
+    uint16_t count = (pir_event_count < max_count) ? pir_event_count : max_count;
+
+    // Ereignisse kopieren (älteste zuerst)
+    for (uint16_t i = 0; i < count; i++) {
+        uint16_t idx = (pir_event_index - pir_event_count + i + PIR_EVENT_MAX_COUNT) % PIR_EVENT_MAX_COUNT;
+        events[i] = pir_events[idx];
+    }
+
+    portEXIT_CRITICAL(&pir_mux);
+    return count;
+}
+
+void pir_clear_events(void)
+{
+    portENTER_CRITICAL(&pir_mux);
+    pir_event_index = 0;
+    pir_event_count = 0;
+    memset(pir_events, 0, sizeof(pir_events));
+    portEXIT_CRITICAL(&pir_mux);
 }

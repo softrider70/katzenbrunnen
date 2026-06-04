@@ -17,6 +17,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <time.h>
 
 static const char *TAG = "web_server";
 static httpd_handle_t server = NULL;
@@ -501,6 +502,120 @@ static esp_err_t captive_portal_handler(httpd_req_t *req)
 }
 
 // ============================================================================
+// PIR Events Handler: GET /api/pir_events
+// ============================================================================
+static esp_err_t pir_events_handler(httpd_req_t *req)
+{
+    pir_event_t *events = malloc(sizeof(pir_event_t) * PIR_EVENT_MAX_COUNT);
+    char *json_response = malloc(8192);
+    if (events == NULL || json_response == NULL) {
+        free(events);
+        free(json_response);
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Out of memory\"}");
+        return ESP_OK;
+    }
+
+    uint16_t count = pir_get_events(events, PIR_EVENT_MAX_COUNT);
+
+    int offset = snprintf(json_response, 8192, "{\"events\":[");
+
+    for (uint16_t i = 0; i < count; i++) {
+        if ((size_t)offset >= 8192 - 80) {
+            break;
+        }
+
+        // Zeitstempel in lesbares Format umwandeln
+        time_t timestamp_sec = events[i].timestamp_ms / 1000;
+        struct tm *tm_info = localtime(&timestamp_sec);
+        char time_str[32];
+        strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", tm_info);
+
+        offset += snprintf(json_response + offset, 8192 - offset,
+            "%s{\"timestamp_ms\":%llu,\"timestamp\":\"%s\",\"duration_ms\":%u}",
+            (i > 0) ? "," : "",
+            (unsigned long long)events[i].timestamp_ms,
+            time_str,
+            events[i].duration_ms
+        );
+    }
+
+    snprintf(json_response + offset, 8192 - offset, "],\"count\":%d}", count);
+
+    send_json_response(req, json_response);
+
+    free(events);
+    free(json_response);
+    return ESP_OK;
+}
+
+// ============================================================================
+// PIR Events Clear Handler: POST /api/pir_events/clear
+// ============================================================================
+static esp_err_t pir_events_clear_handler(httpd_req_t *req)
+{
+    pir_clear_events();
+    send_json_response(req, "{\"status\":\"OK\",\"message\":\"PIR-Ereignisse gelöscht\"}");
+    return ESP_OK;
+}
+
+// ============================================================================
+// Servo Events Handler: GET /api/servo_events
+// ============================================================================
+static esp_err_t servo_events_handler(httpd_req_t *req)
+{
+    servo_event_t *events = malloc(sizeof(servo_event_t) * SERVO_EVENT_MAX_COUNT);
+    char *json_response = malloc(8192);
+    if (events == NULL || json_response == NULL) {
+        free(events);
+        free(json_response);
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Out of memory\"}");
+        return ESP_OK;
+    }
+
+    uint16_t count = servo_get_events(events, SERVO_EVENT_MAX_COUNT);
+
+    int offset = snprintf(json_response, 8192, "{\"events\":[");
+
+    for (uint16_t i = 0; i < count; i++) {
+        if ((size_t)offset >= 8192 - 80) {
+            break;
+        }
+
+        // Zeitstempel in lesbares Format umwandeln
+        time_t timestamp_sec = events[i].timestamp_ms / 1000;
+        struct tm *tm_info = localtime(&timestamp_sec);
+        char time_str[32];
+        strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", tm_info);
+
+        offset += snprintf(json_response + offset, 8192 - offset,
+            "%s{\"timestamp_ms\":%llu,\"timestamp\":\"%s\",\"duration_ms\":%u}",
+            (i > 0) ? "," : "",
+            (unsigned long long)events[i].timestamp_ms,
+            time_str,
+            events[i].duration_ms
+        );
+    }
+
+    snprintf(json_response + offset, 8192 - offset, "],\"count\":%d}", count);
+
+    send_json_response(req, json_response);
+
+    free(events);
+    free(json_response);
+    return ESP_OK;
+}
+
+// ============================================================================
+// Servo Events Clear Handler: POST /api/servo_events/clear
+// ============================================================================
+static esp_err_t servo_events_clear_handler(httpd_req_t *req)
+{
+    servo_clear_events();
+    send_json_response(req, "{\"status\":\"OK\",\"message\":\"Öffnungsereignisse gelöscht\"}");
+    return ESP_OK;
+}
+
+// ============================================================================
 // URI Handler Registration
 // ============================================================================
 static httpd_uri_t status_uri = {
@@ -594,6 +709,34 @@ static httpd_uri_t stacks_uri = {
     .user_ctx = NULL
 };
 
+static httpd_uri_t pir_events_uri = {
+    .uri = "/api/pir_events",
+    .method = HTTP_GET,
+    .handler = pir_events_handler,
+    .user_ctx = NULL
+};
+
+static httpd_uri_t pir_events_clear_uri = {
+    .uri = "/api/pir_events/clear",
+    .method = HTTP_POST,
+    .handler = pir_events_clear_handler,
+    .user_ctx = NULL
+};
+
+static httpd_uri_t servo_events_uri = {
+    .uri = "/api/servo_events",
+    .method = HTTP_GET,
+    .handler = servo_events_handler,
+    .user_ctx = NULL
+};
+
+static httpd_uri_t servo_events_clear_uri = {
+    .uri = "/api/servo_events/clear",
+    .method = HTTP_POST,
+    .handler = servo_events_clear_handler,
+    .user_ctx = NULL
+};
+
 static httpd_uri_t index_uri = {
     .uri = "/",
     .method = HTTP_GET,
@@ -637,6 +780,10 @@ esp_err_t web_server_init(void)
     httpd_register_uri_handler(server, &wifi_reset_uri);
     httpd_register_uri_handler(server, &system_reset_uri);
     httpd_register_uri_handler(server, &stacks_uri);
+    httpd_register_uri_handler(server, &pir_events_uri);
+    httpd_register_uri_handler(server, &pir_events_clear_uri);
+    httpd_register_uri_handler(server, &servo_events_uri);
+    httpd_register_uri_handler(server, &servo_events_clear_uri);
     httpd_register_uri_handler(server, &captive_portal_uri);  // Muss zuletzt registriert werden (Catch-All)
     
     ESP_LOGI(TAG, "Web-Server gestartet auf Port %d", WEB_SERVER_PORT);

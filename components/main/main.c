@@ -242,7 +242,14 @@ static void control_task(void *pvParameters)
                     motion_begin = 0;
                 }
             } else {
-                motion_begin = 0;  // Bewegung unterbrochen -> zurücksetzen
+                // Bewegung unterbrochen -> Ereignis protokollieren
+                if (motion_begin > 0) {
+                    uint64_t duration_ms = (now - motion_begin) / 1000ULL;
+                    if (duration_ms >= 1000) {  // Nur Ereignisse >= 1 Sekunde protokollieren
+                        pir_add_event(duration_ms);
+                    }
+                }
+                motion_begin = 0;  // zurücksetzen
             }
         } else {
             if (motion) {

@@ -6,7 +6,9 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_chip_info.h"
+#include "esp_sleep.h"
 #include "driver/gpio.h"
+#include "driver/rtc_io.h"
 #include "esp_timer.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -87,6 +89,31 @@ static esp_err_t init_hardware(void)
     if (ret != ESP_OK) return ret;
     
     ESP_LOGI(TAG, "Hardware initialisiert");
+
+    // Deep Sleep Wake-Up konfigurieren
+#if POWER_DEEP_SLEEP_ENABLE
+    // GPIO4 als RTC GPIO konfigurieren für Deep Sleep Wake-Up
+    rtc_gpio_init(POWER_DEEP_SLEEP_WAKEUP_GPIO);
+    rtc_gpio_set_direction(POWER_DEEP_SLEEP_WAKEUP_GPIO, RTC_GPIO_MODE_INPUT_ONLY);
+    rtc_gpio_pulldown_en(POWER_DEEP_SLEEP_WAKEUP_GPIO);
+    rtc_gpio_pullup_dis(POWER_DEEP_SLEEP_WAKEUP_GPIO);
+
+    // GPIO Wake-Up für Deep Sleep aktivieren
+    esp_err_t sleep_ret = esp_sleep_enable_gpio_wakeup(
+        BIT(POWER_DEEP_SLEEP_WAKEUP_GPIO),
+        POWER_DEEP_SLEEP_WAKEUP_LEVEL ? ESP_GPIO_WAKEUP_GPIO_HIGH : ESP_GPIO_WAKEUP_GPIO_LOW
+    );
+
+    if (sleep_ret != ESP_OK) {
+        ESP_LOGE(TAG, "GPIO Wake-Up Konfiguration fehlgeschlagen: %s", esp_err_to_name(sleep_ret));
+        return sleep_ret;
+    }
+
+    ESP_LOGI(TAG, "Deep Sleep Wake-Up konfiguriert: GPIO%d (Level=%s)",
+             POWER_DEEP_SLEEP_WAKEUP_GPIO,
+             POWER_DEEP_SLEEP_WAKEUP_LEVEL ? "HIGH" : "LOW");
+#endif
+
     return ESP_OK;
 }
 
@@ -181,20 +208,26 @@ static void close_water_valve(void)
 static void control_task(void *pvParameters)
 {
     ESP_LOGI(TAG, "Steuerungs-Task gestartet (Core %d)", xPortGetCoreID());
-    
+
     // Task beim Watchdog anmelden
     watchdog_subscribe();
-    
+
     // Task-lokale Zustände (nur in diesem Task verwendet -> kein Mutex nötig)
     uint64_t motion_begin = 0;      // Beginn der aktuellen Bewegungsphase
     uint64_t last_motion_open = 0;  // Letzte Bewegung während Ventil offen
     uint64_t cooldown_until = 0;    // Zeitpunkt bis Cooldown aktiv ist
-    
+    uint64_t last_any_motion = 0;   // Letzte beliebige Bewegung (für Deep Sleep)
+
     while (1) {
         uint64_t now = esp_timer_get_time();
         bool motion = pir_motion_detected();
         bool valve_open = servo_is_valve_open();
-        
+
+        // Letzte Bewegung für Deep Sleep aktualisieren
+        if (motion) {
+            last_any_motion = now;
+        }
+
         if (!valve_open) {
             if (now < cooldown_until) {
                 // Cooldown läuft -> nicht öffnen
@@ -221,7 +254,24 @@ static void control_task(void *pvParameters)
                 cooldown_until = now + (PIR_COOLDOWN_MS * 1000ULL);
             }
         }
-        
+
+        // Deep Sleep Prüfung (nur wenn Ventil geschlossen und Cooldown abgelaufen)
+#if POWER_DEEP_SLEEP_ENABLE
+        if (!valve_open && now >= cooldown_until) {
+            uint64_t inactivity_ms = (now - last_any_motion) / 1000ULL;
+            if (inactivity_ms >= POWER_DEEP_SLEEP_TIMEOUT_MS) {
+                ESP_LOGI(TAG, "Inaktivität >= %d ms -> Deep Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
+                ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
+
+                // Watchdog deaktivieren vor Deep Sleep
+                watchdog_stop();
+
+                // Deep Sleep aktivieren
+                esp_deep_sleep_start();
+            }
+        }
+#endif
+
         watchdog_feed();
         vTaskDelay(pdMS_TO_TICKS(100));
     }

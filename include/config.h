@@ -6,7 +6,7 @@
 // ============================================================================
 // GPIO Pin Configuration - Katzenbrunnen ESP32-S3
 // ============================================================================
-#define GPIO_PIR_SENSOR  6   // PIR Bewegungssensor (BIS0001)
+#define GPIO_PIR_SENSOR  4   // PIR Bewegungssensor (BIS0001) - RTC GPIO für Deep Sleep Wake-Up
 #define GPIO_LED_DATA    9   // WS2812B RGB LED
 #define GPIO_BUTTON      10  // manueller Taster
 #define GPIO_SERVO       11  // Gigaline Standard Servo (Wasserhahn-Steuerung)
@@ -144,9 +144,13 @@
 // ============================================================================
 // Power Management Configuration
 // ============================================================================
+#define POWER_DEEP_SLEEP_ENABLE       true   // Deep Sleep aktivieren
+#define POWER_DEEP_SLEEP_TIMEOUT_MS  30000   // Deep Sleep Timeout nach Inaktivität (ms) - 30 Sekunden
+#define POWER_DEEP_SLEEP_WAKEUP_GPIO GPIO_PIR_SENSOR  // GPIO für Deep Sleep Wake-Up (PIR-Sensor)
+#define POWER_DEEP_SLEEP_WAKEUP_LEVEL 1  // Wake-Up Level (1=HIGH, 0=LOW)
 #define WIFI_SLEEP_START_HOUR   22      // WiFi Sleep Start (Uhrzeit)
 #define WIFI_SLEEP_END_HOUR     6       // WiFi Sleep Ende (Uhrzeit)
-#define DEEP_SLEEP_INACTIVITY_MS 300000 // Deep Sleep nach Inaktivität (5 min)
+#define DEEP_SLEEP_INACTIVITY_MS 300000 // Deep Sleep nach Inaktivität (5 min) - veraltet
 #define BATTERY_CRITICAL_VOLTAGE 3.2    // Kritische Spannung pro Zelle (V)
 
 // ============================================================================

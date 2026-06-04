@@ -89,9 +89,12 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - **System-Reset:** Neustart des gesamten ESP32-Systems
 
 ### Stromspar-Modi:
-- **WiFi Sleep:** WLAN deaktivieren wenn nicht benötigt
-- **Deep Sleep:** System in Schlafmodus bei Inaktivität
-- **Spannungsüberwachung:** Abschaltung bei kritischer Batteriespannung
+- **Deep Sleep:** System geht in Deep Sleep nach 30 Sekunden Inaktivität (Wasserhahn geschlossen, keine Bewegung)
+- **Wake-Up:** PIR-Sensor (GPIO4) weckt ESP32 aus Deep Sleep bei Bewegungserkennung
+- **Wake-Up Zeit:** ~20-50ms bis zur vollständigen Betriebsbereitschaft
+- **Stromersparnis:** Deep Sleep verbraucht ~10-20µA vs ~100mA im aktiven Modus
+- **WiFi Sleep:** WLAN deaktivieren wenn nicht benötigt (nicht implementiert)
+- **Spannungsüberwachung:** Abschaltung bei kritischer Batteriespannung (nicht implementiert)
 
 ## Project Structure
 

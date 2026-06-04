@@ -207,7 +207,7 @@ showMsg('wifi',d.message,false);
 }).catch(e=>showMsg('wifi','Fehler: '+e.message,true));
 }
 function wifiReset(){
-if(!confirm('WiFi-C wirklich löschen? AP-Modus wird aktiviert.'))return;
+showMsg('wifi','WiFi-Credentials werden gelöscht...',false);
 fetch('/api/wifi/reset',{method:'POST'}).then(r=>r.json()).then(d=>{
 showMsg('wifi',d.message,false);
 if(d.status==='OK'){
@@ -216,7 +216,7 @@ setTimeout(()=>{location.reload();},2000);
 }).catch(e=>showMsg('wifi','Fehler: '+e.message,true));
 }
 function systemReset(){
-if(!confirm('System wirklich neu starten?'))return;
+showMsg('wifi','System wird neu gestartet...',false);
 fetch('/api/system/reset',{method:'POST'}).then(r=>r.json()).then(d=>{
 showMsg('wifi',d.message,false);
 if(d.status==='OK'){

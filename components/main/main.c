@@ -279,6 +279,20 @@ static void control_task(void *pvParameters)
         }
 #endif
 
+        // Batterie-Abschaltung bei kritischer Spannung
+        if (battery_is_critical()) {
+            ESP_LOGE(TAG, "Kritische Batteriespannung -> Wasserhahn schließen und Deep Sleep");
+            if (valve_open) {
+                close_water_valve();
+            }
+
+            // Watchdog deaktivieren vor Deep Sleep
+            watchdog_stop();
+
+            // Deep Sleep aktivieren (nur durch Reset aufweckbar)
+            esp_deep_sleep_start();
+        }
+
         watchdog_feed();
         vTaskDelay(pdMS_TO_TICKS(100));
     }

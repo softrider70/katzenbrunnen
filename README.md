@@ -93,8 +93,8 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - **Wake-Up:** PIR-Sensor (GPIO4) weckt ESP32 aus Deep Sleep bei Bewegungserkennung
 - **Wake-Up Zeit:** ~20-50ms bis zur vollständigen Betriebsbereitschaft
 - **Stromersparnis:** Deep Sleep verbraucht ~10-20µA vs ~100mA im aktiven Modus
+- **Batterie-Abschaltung:** Bei kritischer Batteriespannung (<3.2V/Zelle) wird Wasserhahn geschlossen und Deep Sleep aktiviert
 - **WiFi Sleep:** WLAN deaktivieren wenn nicht benötigt (nicht implementiert)
-- **Spannungsüberwachung:** Abschaltung bei kritischer Batteriespannung (nicht implementiert)
 
 ## Project Structure
 

@@ -7,6 +7,7 @@
 #include "pir.h"
 #include "ota.h"
 #include "stack_monitor.h"
+#include "heap_monitor.h"
 #include "esp_log.h"
 #include "esp_err.h"
 #include "esp_http_server.h"
@@ -68,6 +69,9 @@ static esp_err_t status_handler(httpd_req_t *req)
     bool motion_detected = pir_motion_detected();
     int8_t rssi = wifi_get_rssi();
     
+    heap_info_t heap_info;
+    heap_monitor_get_info(&heap_info);
+    
     snprintf(json_response, sizeof(json_response),
         "{"
         "\"status\":\"%s\","
@@ -80,6 +84,12 @@ static esp_err_t status_handler(httpd_req_t *req)
         "\"wifi_ssid\":\"%s\","
         "\"wifi_ip\":\"%s\","
         "\"wifi_rssi\":%d,"
+        "\"heap_total\":%lu,"
+        "\"heap_free\":%lu,"
+        "\"heap_min_free\":%lu,"
+        "\"heap_percent\":%u,"
+        "\"heap_warning\":%s,"
+        "\"heap_critical\":%s,"
         "\"uptime_ms\":%llu"
         "}",
         valve_open ? "OPEN" : "CLOSED",
@@ -92,6 +102,12 @@ static esp_err_t status_handler(httpd_req_t *req)
         ssid,
         ip_str,
         rssi,
+        (unsigned long)heap_info.total_heap,
+        (unsigned long)heap_info.free_heap,
+        (unsigned long)heap_info.min_free_heap,
+        heap_info.free_percent,
+        heap_info.warning ? "true" : "false",
+        heap_info.critical ? "true" : "false",
         (unsigned long long)(esp_timer_get_time() / 1000)
     );
     

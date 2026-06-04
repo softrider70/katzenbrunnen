@@ -164,6 +164,13 @@
 #define STACK_MONITOR_INTERVAL_MS 10000  // Stack-Überwachung alle 10 Sekunden
 
 // ============================================================================
+// Heap Monitoring Configuration
+// ============================================================================
+#define HEAP_FREE_WARNING_BYTES  50000   // Warnung wenn freier Heap < 50KB
+#define HEAP_FREE_CRITICAL_BYTES 20000   // Kritisch wenn freier Heap < 20KB
+#define HEAP_MONITOR_INTERVAL_MS  10000  // Heap-Überwachung alle 10 Sekunden
+
+// ============================================================================
 // Watchdog Configuration
 // ============================================================================
 #define TWDT_TIMEOUT_MS         5000    // Watchdog Timeout (5 Sekunden)

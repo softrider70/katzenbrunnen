@@ -109,6 +109,7 @@ katzenbrunnen/
 │       ├── battery.c           Batterie-Monitor Modul (Spannungsmessung)
 │       ├── error_log.c         Fehler-Logging Modul
 │       ├── stack_monitor.c     Stack-Überwachungs Modul
+│       ├── heap_monitor.c      Heap-Überwachungs Modul
 │       ├── watchdog.c          Watchdog Modul
 │       ├── wifi.c              WiFi-Management Modul
 │       ├── web_server.c        Web-Server Modul (HTTP-Handler)
@@ -121,6 +122,7 @@ katzenbrunnen/
 │   ├── battery.h           Batterie-Monitor Header
 │   ├── error_log.h         Fehler-Logging Header
 │   ├── stack_monitor.h     Stack-Überwachung Header
+│   ├── heap_monitor.h      Heap-Überwachung Header
 │   ├── watchdog.h          Watchdog Header
 │   ├── wifi.h              WiFi-Management Header
 │   ├── web_server.h        Web-Server Header
@@ -150,6 +152,7 @@ katzenbrunnen/
 - **battery.c/h:** ADC-Initialisierung, Spannungsmessung, Prozentberechnung
 - **error_log.c/h:** Fehler-Logging mit Ringbuffer, Fehlercode-Generierung
 - **stack_monitor.c/h:** Stack-Überwachung für bekannte Tasks (ESP-IDF 6.1 kompatibel)
+- **heap_monitor.c/h:** Heap-Überwachung mit Warnung/Kritisch-Schwellen
 - **watchdog.c/h:** ESP32 Task Watchdog, Emergency-Close bei Trigger
 - **wifi.c/h:** WiFi-Verbindungsmanagement, Credential-Handling, AP-Fallback
 - **web_server.c/h:** HTTP-Server, API-Endpunkte, HTML/JSON-Generierung

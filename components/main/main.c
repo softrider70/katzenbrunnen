@@ -21,6 +21,7 @@
 #include "battery.h"
 #include "error_log.h"
 #include "stack_monitor.h"
+#include "heap_monitor.h"
 #include "watchdog.h"
 #include "wifi.h"
 #include "web_server.h"
@@ -92,6 +93,9 @@ static esp_err_t init_hardware(void)
     if (ret != ESP_OK) return ret;
     
     ret = stack_monitor_init();
+    if (ret != ESP_OK) return ret;
+    
+    ret = heap_monitor_init();
     if (ret != ESP_OK) return ret;
     
     ret = watchdog_init();
@@ -452,6 +456,10 @@ void app_main(void)
     
     if (stack_monitor_start_task() != ESP_OK) {
         ESP_LOGE(TAG, "Stack-Monitor-Task Start fehlgeschlagen");
+    }
+    
+    if (heap_monitor_start_task() != ESP_OK) {
+        ESP_LOGE(TAG, "Heap-Monitor-Task Start fehlgeschlagen");
     }
     
     if (watchdog_start_task() != ESP_OK) {

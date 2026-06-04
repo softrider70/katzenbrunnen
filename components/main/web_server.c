@@ -23,6 +23,16 @@
 static const char *TAG = "web_server";
 static httpd_handle_t server = NULL;
 
+// Statische Puffer für HTTP-Responses (vermeidet Heap-Fragmentierung)
+static error_log_entry_t error_entries_buffer[ERROR_LOG_MAX_ENTRIES];
+static char error_json_buffer[8192];
+static stack_info_t stack_info_buffer[16];
+static char stack_json_buffer[2048];
+static pir_event_t pir_events_buffer[PIR_EVENT_MAX_COUNT];
+static char pir_json_buffer[8192];
+static servo_event_t servo_events_buffer[SERVO_EVENT_MAX_COUNT];
+static char servo_json_buffer[8192];
+
 // JSON Escape Helper
 static void json_escape_string(const char *src, char *dst, size_t dst_size)
 {
@@ -120,49 +130,34 @@ static esp_err_t status_handler(httpd_req_t *req)
 // ============================================================================
 static esp_err_t errors_handler(httpd_req_t *req)
 {
-    // Speicher auf dem Heap statt Stack (httpd-Task-Stack ist begrenzt)
-    const size_t entries_size = sizeof(error_log_entry_t) * ERROR_LOG_MAX_ENTRIES;
-    const size_t json_size = 8192;
+    // Statische Puffer verwenden (vermeidet Heap-Fragmentierung)
+    uint16_t count = error_log_get_all(error_entries_buffer, ERROR_LOG_MAX_ENTRIES);
     
-    error_log_entry_t *entries = malloc(entries_size);
-    char *json_response = malloc(json_size);
-    if (entries == NULL || json_response == NULL) {
-        free(entries);
-        free(json_response);
-        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Out of memory\"}");
-        return ESP_OK;
-    }
-    
-    uint16_t count = error_log_get_all(entries, ERROR_LOG_MAX_ENTRIES);
-    
-    int offset = snprintf(json_response, json_size, "{\"errors\":[");
+    int offset = snprintf(error_json_buffer, sizeof(error_json_buffer), "{\"errors\":[");
     
     for (uint16_t i = 0; i < count; i++) {
         char escaped_task[32] = {0};
-        json_escape_string(entries[i].task_name, escaped_task, sizeof(escaped_task));
+        json_escape_string(error_entries_buffer[i].task_name, escaped_task, sizeof(escaped_task));
         
         // Pufferüberlauf vermeiden: vor jedem Eintrag Restplatz prüfen
-        if ((size_t)offset >= json_size - 160) {
+        if ((size_t)offset >= sizeof(error_json_buffer) - 160) {
             break;
         }
         
-        offset += snprintf(json_response + offset, json_size - offset,
+        offset += snprintf(error_json_buffer + offset, sizeof(error_json_buffer) - offset,
             "%s{\"code\":\"%s\",\"id\":%d,\"timestamp_ms\":%llu,\"task\":\"%s\",\"severity\":%d}",
             (i > 0) ? "," : "",
-            entries[i].code,
-            entries[i].error_id,
-            (unsigned long long)entries[i].timestamp_ms,
+            error_entries_buffer[i].code,
+            error_entries_buffer[i].error_id,
+            (unsigned long long)error_entries_buffer[i].timestamp_ms,
             escaped_task,
-            entries[i].severity
+            error_entries_buffer[i].severity
         );
     }
     
-    snprintf(json_response + offset, json_size - offset, "],\"count\":%d}", count);
+    snprintf(error_json_buffer + offset, sizeof(error_json_buffer) - offset, "],\"count\":%d}", count);
     
-    send_json_response(req, json_response);
-    
-    free(entries);
-    free(json_response);
+    send_json_response(req, error_json_buffer);
     return ESP_OK;
 }
 
@@ -414,36 +409,26 @@ static esp_err_t ota_rollback_handler(httpd_req_t *req)
 // ============================================================================
 static esp_err_t stacks_handler(httpd_req_t *req)
 {
-    stack_info_t *info = malloc(sizeof(stack_info_t) * 16);
-    char *json = malloc(2048);
-    if (info == NULL || json == NULL) {
-        free(info);
-        free(json);
-        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Out of memory\"}");
-        return ESP_OK;
-    }
-    
-    uint8_t count = stack_monitor_get_all(info, 16);
-    int offset = snprintf(json, 2048, "{\"stacks\":[");
+    // Statische Puffer verwenden (vermeidet Heap-Fragmentierung)
+    uint8_t count = stack_monitor_get_all(stack_info_buffer, 16);
+    int offset = snprintf(stack_json_buffer, sizeof(stack_json_buffer), "{\"stacks\":[");
     for (uint8_t i = 0; i < count; i++) {
         char esc[20] = {0};
-        json_escape_string(info[i].task_name, esc, sizeof(esc));
-        if ((size_t)offset >= 2048 - 120) {
+        json_escape_string(stack_info_buffer[i].task_name, esc, sizeof(esc));
+        if ((size_t)offset >= sizeof(stack_json_buffer) - 120) {
             break;
         }
-        offset += snprintf(json + offset, 2048 - offset,
+        offset += snprintf(stack_json_buffer + offset, sizeof(stack_json_buffer) - offset,
             "%s{\"task\":\"%s\",\"free_bytes\":%lu,\"warning\":%s,\"critical\":%s}",
             (i > 0) ? "," : "",
             esc,
-            (unsigned long)info[i].stack_free,
-            info[i].warning ? "true" : "false",
-            info[i].critical ? "true" : "false");
+            (unsigned long)stack_info_buffer[i].stack_free,
+            stack_info_buffer[i].warning ? "true" : "false",
+            stack_info_buffer[i].critical ? "true" : "false");
     }
-    snprintf(json + offset, 2048 - offset, "],\"count\":%d}", count);
+    snprintf(stack_json_buffer + offset, sizeof(stack_json_buffer) - offset, "],\"count\":%d}", count);
     
-    send_json_response(req, json);
-    free(info);
-    free(json);
+    send_json_response(req, stack_json_buffer);
     return ESP_OK;
 }
 
@@ -522,45 +507,34 @@ static esp_err_t captive_portal_handler(httpd_req_t *req)
 // ============================================================================
 static esp_err_t pir_events_handler(httpd_req_t *req)
 {
-    pir_event_t *events = malloc(sizeof(pir_event_t) * PIR_EVENT_MAX_COUNT);
-    char *json_response = malloc(8192);
-    if (events == NULL || json_response == NULL) {
-        free(events);
-        free(json_response);
-        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Out of memory\"}");
-        return ESP_OK;
-    }
+    // Statische Puffer verwenden (vermeidet Heap-Fragmentierung)
+    uint16_t count = pir_get_events(pir_events_buffer, PIR_EVENT_MAX_COUNT);
 
-    uint16_t count = pir_get_events(events, PIR_EVENT_MAX_COUNT);
-
-    int offset = snprintf(json_response, 8192, "{\"events\":[");
+    int offset = snprintf(pir_json_buffer, sizeof(pir_json_buffer), "{\"events\":[");
 
     for (uint16_t i = 0; i < count; i++) {
-        if ((size_t)offset >= 8192 - 80) {
+        if ((size_t)offset >= sizeof(pir_json_buffer) - 80) {
             break;
         }
 
         // Zeitstempel in lesbares Format umwandeln
-        time_t timestamp_sec = events[i].timestamp_ms / 1000;
+        time_t timestamp_sec = pir_events_buffer[i].timestamp_ms / 1000;
         struct tm *tm_info = localtime(&timestamp_sec);
         char time_str[32];
         strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", tm_info);
 
-        offset += snprintf(json_response + offset, 8192 - offset,
+        offset += snprintf(pir_json_buffer + offset, sizeof(pir_json_buffer) - offset,
             "%s{\"timestamp_ms\":%llu,\"timestamp\":\"%s\",\"duration_ms\":%u}",
             (i > 0) ? "," : "",
-            (unsigned long long)events[i].timestamp_ms,
+            (unsigned long long)pir_events_buffer[i].timestamp_ms,
             time_str,
-            events[i].duration_ms
+            pir_events_buffer[i].duration_ms
         );
     }
 
-    snprintf(json_response + offset, 8192 - offset, "],\"count\":%d}", count);
+    snprintf(pir_json_buffer + offset, sizeof(pir_json_buffer) - offset, "],\"count\":%d}", count);
 
-    send_json_response(req, json_response);
-
-    free(events);
-    free(json_response);
+    send_json_response(req, pir_json_buffer);
     return ESP_OK;
 }
 
@@ -579,45 +553,34 @@ static esp_err_t pir_events_clear_handler(httpd_req_t *req)
 // ============================================================================
 static esp_err_t servo_events_handler(httpd_req_t *req)
 {
-    servo_event_t *events = malloc(sizeof(servo_event_t) * SERVO_EVENT_MAX_COUNT);
-    char *json_response = malloc(8192);
-    if (events == NULL || json_response == NULL) {
-        free(events);
-        free(json_response);
-        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Out of memory\"}");
-        return ESP_OK;
-    }
+    // Statische Puffer verwenden (vermeidet Heap-Fragmentierung)
+    uint16_t count = servo_get_events(servo_events_buffer, SERVO_EVENT_MAX_COUNT);
 
-    uint16_t count = servo_get_events(events, SERVO_EVENT_MAX_COUNT);
-
-    int offset = snprintf(json_response, 8192, "{\"events\":[");
+    int offset = snprintf(servo_json_buffer, sizeof(servo_json_buffer), "{\"events\":[");
 
     for (uint16_t i = 0; i < count; i++) {
-        if ((size_t)offset >= 8192 - 80) {
+        if ((size_t)offset >= sizeof(servo_json_buffer) - 80) {
             break;
         }
 
         // Zeitstempel in lesbares Format umwandeln
-        time_t timestamp_sec = events[i].timestamp_ms / 1000;
+        time_t timestamp_sec = servo_events_buffer[i].timestamp_ms / 1000;
         struct tm *tm_info = localtime(&timestamp_sec);
         char time_str[32];
         strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", tm_info);
 
-        offset += snprintf(json_response + offset, 8192 - offset,
+        offset += snprintf(servo_json_buffer + offset, sizeof(servo_json_buffer) - offset,
             "%s{\"timestamp_ms\":%llu,\"timestamp\":\"%s\",\"duration_ms\":%u}",
             (i > 0) ? "," : "",
-            (unsigned long long)events[i].timestamp_ms,
+            (unsigned long long)servo_events_buffer[i].timestamp_ms,
             time_str,
-            events[i].duration_ms
+            servo_events_buffer[i].duration_ms
         );
     }
 
-    snprintf(json_response + offset, 8192 - offset, "],\"count\":%d}", count);
+    snprintf(servo_json_buffer + offset, sizeof(servo_json_buffer) - offset, "],\"count\":%d}", count);
 
-    send_json_response(req, json_response);
-
-    free(events);
-    free(json_response);
+    send_json_response(req, servo_json_buffer);
     return ESP_OK;
 }
 

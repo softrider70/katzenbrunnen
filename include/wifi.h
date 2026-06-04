@@ -73,4 +73,10 @@ bool wifi_is_sleep_active(void);
  */
 bool wifi_is_ap_mode_forced(void);
 
+/**
+ * @brief WiFi-Credentials löschen (WiFi-Reset)
+ * @return ESP_OK bei Erfolg, Fehlercode sonst
+ */
+esp_err_t wifi_reset_credentials(void);
+
 #endif // WIFI_H

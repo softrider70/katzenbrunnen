@@ -92,6 +92,11 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <button class="btn-primary" onclick="saveWifi()">Speichern & Verbinden</button>
 <button class="btn-secondary" onclick="wifiReconnect()">Neu verbinden</button>
 </div>
+<p style="font-size:12px;margin:20px 0 10px 0;color:#ef4444"><b>Gefährliche Aktionen:</b></p>
+<div class="buttons">
+<button class="btn-danger" onclick="wifiReset()">WiFi-Reset</button>
+<button class="btn-danger" onclick="systemReset()">System-Reset</button>
+</div>
 <div id="msg-wifi" class="msg"></div>
 </div>
 
@@ -199,6 +204,24 @@ setTimeout(()=>{location.reload();},2000);
 function wifiReconnect(){
 fetch('/api/wifi/reconnect',{method:'POST'}).then(r=>r.json()).then(d=>{
 showMsg('wifi',d.message,false);
+}).catch(e=>showMsg('wifi','Fehler: '+e.message,true));
+}
+function wifiReset(){
+if(!confirm('WiFi-C wirklich löschen? AP-Modus wird aktiviert.'))return;
+fetch('/api/wifi/reset',{method:'POST'}).then(r=>r.json()).then(d=>{
+showMsg('wifi',d.message,false);
+if(d.status==='OK'){
+setTimeout(()=>{location.reload();},2000);
+}
+}).catch(e=>showMsg('wifi','Fehler: '+e.message,true));
+}
+function systemReset(){
+if(!confirm('System wirklich neu starten?'))return;
+fetch('/api/system/reset',{method:'POST'}).then(r=>r.json()).then(d=>{
+showMsg('wifi',d.message,false);
+if(d.status==='OK'){
+setTimeout(()=>{location.reload();},2000);
+}
 }).catch(e=>showMsg('wifi','Fehler: '+e.message,true));
 }
 updateDashboard();

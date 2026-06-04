@@ -82,6 +82,11 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - **Captive Portal:** Nach Verbindung mit dem AP wird der Client automatisch auf die WiFi-Einrichtungsseite weitergeleitet
 - **Einrichtung über Web-UI:** SSID und Passwort können direkt im Browser eingegeben werden
 - **Automatische Verbindung:** Nach erfolgreicher Einrichtung verbindet sich das Gerät automatisch mit dem konfigurierten Netzwerk
+- **mDNS-Hostname:** Gerät ist unter `katzenbrunnen.local` im Netzwerk erreichbar
+
+### System-Reset Funktionen:
+- **WiFi-Reset:** Löscht gespeicherte WiFi-Credentials und startet AP-Modus neu
+- **System-Reset:** Neustart des gesamten ESP32-Systems
 
 ### Stromspar-Modi:
 - **WiFi Sleep:** WLAN deaktivieren wenn nicht benötigt

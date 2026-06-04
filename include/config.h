@@ -124,6 +124,7 @@
 #define WIFI_AP_SSID            "katzenbrunnen_setup"
 #define WIFI_AP_PASSWORD        "katzen123"
 #define WIFI_AP_IP              "192.168.4.1"  // AP IP-Adresse
+#define WIFI_HOSTNAME           "katzenbrunnen"  // mDNS Hostname
 
 // ============================================================================
 // Web Server Configuration

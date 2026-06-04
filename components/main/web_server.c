@@ -11,6 +11,7 @@
 #include "esp_err.h"
 #include "esp_http_server.h"
 #include "esp_timer.h"
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <string.h>
@@ -430,6 +431,36 @@ static esp_err_t stacks_handler(httpd_req_t *req)
 }
 
 // ============================================================================
+// WiFi-Reset Handler: POST /api/wifi/reset
+// ============================================================================
+static esp_err_t wifi_reset_handler(httpd_req_t *req)
+{
+    esp_err_t ret = wifi_reset_credentials();
+    if (ret == ESP_OK) {
+        send_json_response(req, "{\"status\":\"OK\",\"message\":\"WiFi-Credentials gelöscht, AP-Modus aktiv\"}");
+    } else {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"WiFi-Reset fehlgeschlagen\"}");
+    }
+    return ESP_OK;
+}
+
+// ============================================================================
+// System-Reset Handler: POST /api/system/reset
+// ============================================================================
+static esp_err_t system_reset_handler(httpd_req_t *req)
+{
+    send_json_response(req, "{\"status\":\"OK\",\"message\":\"System wird neu gestartet\"}");
+
+    // Kurze Verzögerung damit Response gesendet werden kann
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    // System-Reset
+    esp_restart();
+
+    return ESP_OK;
+}
+
+// ============================================================================
 // HTML Handler: GET / - Main Web UI (HTML aus eingebetteter Datei)
 // ============================================================================
 // Eingebettete HTML-Datei (siehe src/CMakeLists.txt EMBED_TXTFILES)
@@ -542,6 +573,20 @@ static httpd_uri_t wifi_reconnect_uri = {
     .user_ctx = NULL
 };
 
+static httpd_uri_t wifi_reset_uri = {
+    .uri = "/api/wifi/reset",
+    .method = HTTP_POST,
+    .handler = wifi_reset_handler,
+    .user_ctx = NULL
+};
+
+static httpd_uri_t system_reset_uri = {
+    .uri = "/api/system/reset",
+    .method = HTTP_POST,
+    .handler = system_reset_handler,
+    .user_ctx = NULL
+};
+
 static httpd_uri_t stacks_uri = {
     .uri = "/api/stacks",
     .method = HTTP_GET,
@@ -589,6 +634,8 @@ esp_err_t web_server_init(void)
     httpd_register_uri_handler(server, &ota_rollback_uri);
     httpd_register_uri_handler(server, &wifi_config_uri);
     httpd_register_uri_handler(server, &wifi_reconnect_uri);
+    httpd_register_uri_handler(server, &wifi_reset_uri);
+    httpd_register_uri_handler(server, &system_reset_uri);
     httpd_register_uri_handler(server, &stacks_uri);
     httpd_register_uri_handler(server, &captive_portal_uri);  // Muss zuletzt registriert werden (Catch-All)
     

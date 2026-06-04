@@ -7,6 +7,7 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_netif.h"
+#include "mdns.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
@@ -276,6 +277,31 @@ esp_err_t wifi_init(void)
     }
     
     ESP_LOGI(TAG, "WiFi-Modul initialisiert (Modus: APSTA)");
+
+    // mDNS initialisieren
+    ret = mdns_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "mDNS-Initialisierung fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    // Hostname setzen
+    ret = mdns_hostname_set(WIFI_HOSTNAME);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "mDNS-Hostname-Setzen fehlgeschlagen: %s", esp_err_to_name(ret));
+        mdns_free();
+        return ret;
+    }
+
+    // mDNS-Instanz für HTTP konfigurieren
+    ret = mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "mDNS-Service-Add fehlgeschlagen: %s", esp_err_to_name(ret));
+        mdns_free();
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "mDNS gestartet: %s.local", WIFI_HOSTNAME);
     return ESP_OK;
 }
 
@@ -468,4 +494,48 @@ bool wifi_is_ap_mode_forced(void)
     forced = wifi_state.ap_mode_forced;
     xSemaphoreGive(wifi_mutex);
     return forced;
+}
+
+esp_err_t wifi_reset_credentials(void)
+{
+    nvs_handle_t nvs_handle;
+    esp_err_t ret = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "NVS-Öffnen fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    // WiFi-Credentials löschen
+    ret = nvs_erase_key(nvs_handle, NVS_KEY_WIFI_SSID);
+    if (ret != ESP_OK && ret != ESP_ERR_NVS_NOT_FOUND) {
+        ESP_LOGE(TAG, "SSID-Löschen fehlgeschlagen: %s", esp_err_to_name(ret));
+        nvs_close(nvs_handle);
+        return ret;
+    }
+
+    ret = nvs_erase_key(nvs_handle, NVS_KEY_WIFI_PASS);
+    if (ret != ESP_OK && ret != ESP_ERR_NVS_NOT_FOUND) {
+        ESP_LOGE(TAG, "Passwort-Löschen fehlgeschlagen: %s", esp_err_to_name(ret));
+        nvs_close(nvs_handle);
+        return ret;
+    }
+
+    ret = nvs_commit(nvs_handle);
+    nvs_close(nvs_handle);
+
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "NVS-Commit fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    // WiFi-State zurücksetzen
+    xSemaphoreTake(wifi_mutex, portMAX_DELAY);
+    wifi_state.ssid[0] = '\0';
+    wifi_state.retry_count = 0;
+    wifi_state.ap_mode_forced = true;
+    has_sta_credentials = false;
+    xSemaphoreGive(wifi_mutex);
+
+    ESP_LOGI(TAG, "WiFi-Credentials gelöscht, AP-Modus wird erzwungen");
+    return ESP_OK;
 }

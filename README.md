@@ -36,8 +36,8 @@ Automatischer Katzenbrunnen für Katzen zur Selbstversorgung mit Wasser. Das Sys
 
 ### ESP32-S3 Pin-Belegung:
 ```
-GPIO6  → PIR Bewegungssensor (Digital)
-GPIO9  → WS2812B RGB LED Data
+GPIO4  → PIR Bewegungssensor (Digital) - RTC GPIO für Deep Sleep Wake-Up
+GPIO48 → WS2812B RGB LED Data (fest verdrahtet vom Hersteller)
 GPIO10  → manueller Taster (mit Pull-up)
 GPIO11  → Gigaline Standard Servo (PWM) - Wasserhahn-Steuerung
 GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
@@ -96,6 +96,7 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - **Stromersparnis:** Deep Sleep ~10-20µA, Light Sleep ~10-20mA vs ~100mA im aktiven Modus
 - **Batterie-Abschaltung:** Bei kritischer Batteriespannung (<3.2V/Zelle) wird Wasserhahn geschlossen und Deep Sleep aktiviert
 - **WiFi Sendeleistung:** Reduzierte Sendeleistung (14dBm Standard) für ~30-40% Stromersparnis bei der Übertragung (konfigurierbar über WIFI_TX_POWER)
+- **WICHTIG - Batteriespannungsmessung:** Die Batteriespannung darf NICHT gemessen werden, wenn der Servo aktiv ist, da der Servo-Strom die ADC-Messung verfälscht. Die Spannungsmessung muss nur erfolgen, wenn der Servo inaktiv ist.
 
 ## Project Structure
 

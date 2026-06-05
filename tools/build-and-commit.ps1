@@ -28,14 +28,20 @@ $buildNumber = if (Test-Path $buildNumberPath) { Get-Content $buildNumberPath -R
 # Build ausführen mit ESP-IDF Umgebung (activate-esp-idf.ps1)
 Write-Host "Building project..." -ForegroundColor Cyan
 $activateScript = Join-Path $ProjectPath "activate-esp-idf.ps1"
+$env:IDF_BUILD_JOBS = "16"
 $buildCmd = ". '$activateScript'; idf.py build"
-powershell -ExecutionPolicy Bypass -NoProfile -Command $buildCmd
+$buildStartTime = Get-Date
+powershell -ExecutionPolicy Bypass -NoProfile -Command $buildCmd | Out-Null
 $buildExitCode = $LASTEXITCODE
+$buildDuration = ((Get-Date) - $buildStartTime).TotalSeconds
+$env:IDF_BUILD_JOBS = $null
 
 if ($buildExitCode -ne 0) {
-    Write-Host "Build failed!" -ForegroundColor Red
+    Write-Host "Build failed! (Dauer: ${buildDuration:F1}s)" -ForegroundColor Red
     exit $buildExitCode
 }
+
+Write-Host "Build erfolgreich! (Dauer: ${buildDuration:F1}s)" -ForegroundColor Green
 
 # Commit mit Buildnummer und version.h
 $gitAddFiles = @()

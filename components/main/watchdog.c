@@ -18,7 +18,7 @@ esp_err_t watchdog_init(void)
     esp_task_wdt_config_t twdt_config = {
         .timeout_ms = TWDT_TIMEOUT_MS,
         .idle_core_mask = 0,        // Idle-Tasks nicht überwachen
-        .trigger_panic = true,      // Panic + Reset bei Timeout
+        .trigger_panic = false,     // Panic deaktiviert für Debugging (Bootloop-Diagnose)
     };
     
     // Der TWDT ist je nach sdkconfig bereits initialisiert -> rekonfigurieren

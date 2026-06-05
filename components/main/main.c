@@ -26,6 +26,7 @@
 #include "wifi.h"
 #include "web_server.h"
 #include "ota.h"
+#include "led.h"
 
 static const char *TAG = "katzenbrunnen";
 
@@ -88,6 +89,12 @@ static esp_err_t init_hardware(void)
     
     ret = servo_init();
     if (ret != ESP_OK) return ret;
+    
+    // WS2812B Status-LED (GPIO48) - Fehler ist nicht kritisch
+    ret = led_init();
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "LED-Init fehlgeschlagen (nicht kritisch): %s", esp_err_to_name(ret));
+    }
     
     ret = battery_init();
     if (ret != ESP_OK) return ret;
@@ -230,6 +237,7 @@ static void open_water_valve(void)
     }
     
     servo_open_valve();
+    led_set_state(LED_STATE_OPEN);  // blau: Wasserhahn offen
     
     xSemaphoreTake(state_mutex, portMAX_DELAY);
     activation_count++;
@@ -250,6 +258,7 @@ static void close_water_valve(void)
     }
     
     servo_close_valve();
+    led_set_state(LED_STATE_IDLE);  // grün: System bereit
     ESP_LOGI(TAG, "Wasserhahn geschlossen");
 }
 
@@ -274,6 +283,7 @@ static void control_task(void *pvParameters)
     uint64_t last_motion_open = 0;  // Letzte Bewegung während Ventil offen
     uint64_t cooldown_until = 0;    // Zeitpunkt bis Cooldown aktiv ist
     uint64_t last_any_motion = 0;   // Letzte beliebige Bewegung (für Deep Sleep)
+    led_state_t last_led = LED_STATE_IDLE;  // Zuletzt gesetzte LED-Farbe (nur bei Änderung senden)
 
     while (1) {
         uint64_t now = esp_timer_get_time();
@@ -384,9 +394,24 @@ static void control_task(void *pvParameters)
         }
 #endif
 
+        // Status-LED aktualisieren (nur bei Änderung senden)
+        led_state_t led_target;
+        if (valve_open) {
+            led_target = LED_STATE_OPEN;        // blau: Wasserhahn offen
+        } else if (motion && now >= cooldown_until) {
+            led_target = LED_STATE_MOTION;      // gelb: Bewegung erkannt
+        } else {
+            led_target = LED_STATE_IDLE;        // grün: bereit
+        }
+        if (led_target != last_led) {
+            led_set_state(led_target);
+            last_led = led_target;
+        }
+
         // Batterie-Abschaltung bei kritischer Spannung
         if (battery_is_critical()) {
             ESP_LOGE(TAG, "Kritische Batteriespannung -> Wasserhahn schließen und Deep Sleep");
+            led_set_state(LED_STATE_CRITICAL);  // rot: kritische Batterie
             if (valve_open) {
                 close_water_valve();
             }

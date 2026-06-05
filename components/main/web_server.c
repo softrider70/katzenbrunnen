@@ -736,7 +736,8 @@ esp_err_t web_server_init(void)
     config.server_port = WEB_SERVER_PORT;
     config.lru_purge_enable = true;
     config.stack_size = TASK_STACK_WEB;     // httpd-Task-Stack vergrößern
-    config.max_uri_handlers = 16;           // Genug Platz für alle Endpunkte
+    config.max_uri_handlers = 20;           // 19 Handler + Reserve (sonst scheitert Captive-Portal-Catch-All)
+    config.uri_match_fn = httpd_uri_match_wildcard;  // Wildcard-Matching für Catch-All "/*" (Captive Portal)
     config.core_id = TASK_CORE_NETWORK;     // httpd auf Netzwerk-Core
     
     esp_err_t ret = httpd_start(&server, &config);

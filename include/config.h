@@ -7,7 +7,7 @@
 // GPIO Pin Configuration - Katzenbrunnen ESP32-S3
 // ============================================================================
 #define GPIO_PIR_SENSOR  4   // PIR Bewegungssensor (BIS0001) - RTC GPIO für Deep Sleep Wake-Up
-#define GPIO_LED_DATA    9   // WS2812B RGB LED
+#define GPIO_LED_DATA    48  // WS2812B RGB LED (fest verdrahtet auf GPIO48)
 #define GPIO_BUTTON      10  // manueller Taster
 #define GPIO_SERVO       11  // Gigaline Standard Servo (Wasserhahn-Steuerung)
 #define GPIO_BATTERY_ADC 1   // ADC1_CH1 - Batteriespannungsmessung
@@ -15,21 +15,21 @@
 // ============================================================================
 // Katzenbrunnen Parameter
 // ============================================================================
-#define SERVO_OPEN_ANGLE_US     2000    // Servo-Position für geöffneten Wasserhahn (Pulsweite in µs)
-#define SERVO_CLOSE_ANGLE_US    1000    // Servo-Position für geschlossenen Wasserhahn (Pulsweite in µs)
+#define SERVO_OPEN_ANGLE_US      170    // Servo-Position für geöffneten Wasserhahn (Pulsweite in µs)
+#define SERVO_CLOSE_ANGLE_US     780    // Servo-Position für geschlossenen Wasserhahn (Pulsweite in µs)
 #define MOTION_TIMEOUT_MS       10000   // Timeout ohne Bewegung vor Schließen (ms)
 #define MIN_MOTION_DURATION_MS  2000    // Minimale Bewegungsdauer für Aktivierung (ms)
 #define PIR_COOLDOWN_MS         30000   // Cooldown nach Schließen vor erneuter Aktivierung (ms)
 #define PIR_DETECTION_WINDOW_MS 1500    // Fenster, in dem eine Bewegung als "aktiv" gilt (ms)
 
 // ============================================================================
-// Batterie-Konfiguration (LiPo 2S, 7.4V nominal, 4Ah)
+// Batterie-Konfiguration (LiPo 2S, 7.4V nominal, 2Ah)
 // ============================================================================
 // WICHTIG (Hardware): Bei 2S liegt die Packspannung bei bis zu 8.4V. Der
 // Spannungsteiler muss so dimensioniert sein, dass am ADC max. ~3.0V anliegen.
 // Mit R1=22k / R2=10k ergibt sich Faktor 3.2 -> 8.4V/3.2 = 2.625V (sicher).
 #define BATTERY_CELLS          2       // Anzahl Zellen in Serie (2S)
-#define BATTERY_CAPACITY_AH     4.0     // Kapazität in Ah
+#define BATTERY_CAPACITY_AH     2.0     // Kapazität in Ah
 #define BATTERY_VOLTAGE_MIN     3.0     // Minimale Zellspannung (V) - Abschaltung
 #define BATTERY_VOLTAGE_MAX     4.2     // Maximale Zellspannung (V) - voll geladen
 #define BATTERY_VOLTAGE_NOMINAL 3.7     // Nominale Zellspannung (V)
@@ -122,7 +122,7 @@
 #define WIFI_RETRY_INTERVAL_MS  5000    // WiFi Verbindungsretry Intervall
 #define WIFI_MAX_RETRY           3       // Maximale Verbindungsversuche vor AP-Start
 #define WIFI_AP_SSID            "katzenbrunnen_setup"
-#define WIFI_AP_PASSWORD        "katzen123"
+#define WIFI_AP_PASSWORD        ""             // leer = offenes Setup-Netz (kein Passwort nötig)
 #define WIFI_AP_IP              "192.168.4.1"  // AP IP-Adresse
 #define WIFI_AP_GATEWAY         "192.168.4.1"  // AP Gateway
 #define WIFI_AP_NETMASK         "255.255.255.0"  // AP Netmask

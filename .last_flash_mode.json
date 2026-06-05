@@ -1,0 +1,8 @@
+{
+  "mode": "usb",
+  "hostIp": "",
+  "usbPort": "COM5",
+  "deviceIp": "",
+  "flashType": "update",
+  "httpPort": 8070
+}

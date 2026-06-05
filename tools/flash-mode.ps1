@@ -261,14 +261,14 @@ if ($Mode -eq 'usb') {
         & python -m esptool --port $UsbPort --baud $Baud `
             write_flash 0x0 $bootloaderPath `
                         0x8000 $partitionPath `
-                        0x10000 $binPath 2>&1 | ForEach-Object {
+                        0x20000 $binPath 2>&1 | ForEach-Object {
                 Write-Host "  $_" -ForegroundColor Gray
             }
     } else {
         Write-Host "[FLASH] ⚡ Fast Update (nur App)..." -ForegroundColor Cyan
-        Write-Host "  App: $binPath -> 0x10000" -ForegroundColor Gray
+        Write-Host "  App: $binPath -> 0x20000" -ForegroundColor Gray
 
-        & python -m esptool --port $UsbPort --baud $Baud write_flash 0x10000 $binPath 2>&1 | ForEach-Object {
+        & python -m esptool --port $UsbPort --baud $Baud write_flash 0x20000 $binPath 2>&1 | ForEach-Object {
             Write-Host "  $_" -ForegroundColor Gray
         }
     }

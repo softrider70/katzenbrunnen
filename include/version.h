@@ -12,9 +12,9 @@
 
 #define VERSION_MAJOR               0
 #define VERSION_MINOR               1
-#define BUILD_NUMBER                93
-#define BUILD_TIMESTAMP             "2026-06-05 23:06:02"
-#define VERSION_STRING              "v0.1.93"
+#define BUILD_NUMBER                94
+#define BUILD_TIMESTAMP             "2026-06-05 23:10:09"
+#define VERSION_STRING              "v0.1.94"
 
 // Full version identifier for logs and UI
 #define APP_FULL_VERSION            VERSION_STRING " (" BUILD_TIMESTAMP ")"

@@ -175,12 +175,22 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 </div>
 
 <script>
+let dashboardInterval=null;
 function showTab(tabId){
 document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
 document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
 document.querySelector('.tab-btn[onclick="showTab(\''+tabId+'\')"]').classList.add('active');
 document.getElementById(tabId).classList.add('active');
-if(tabId==='dashboard')updateDashboard();
+if(tabId==='dashboard'){
+updateDashboard();
+if(dashboardInterval)clearInterval(dashboardInterval);
+dashboardInterval=setInterval(updateDashboard,2000);
+}else{
+if(dashboardInterval){
+clearInterval(dashboardInterval);
+dashboardInterval=null;
+}
+}
 if(tabId==='logs')loadLogs();
 if(tabId==='ota')checkOtaStatus();
 if(tabId==='codes')loadCodes();
@@ -416,6 +426,5 @@ return;
 setServoPosition(pulseUs);
 }
 updateDashboard();
-setInterval(updateDashboard,2000);
 </script>
 </body></html>

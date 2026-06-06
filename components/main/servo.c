@@ -162,10 +162,6 @@ void servo_open_valve(void)
     // Verzögerung damit Servo-Stromversorgung stabilisiert
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    // Zuerst auf neutrale Position bewegen um Ruck zu vermeiden
-    servo_set_position(SERVO_NEUTRAL_US);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
-
     ESP_LOGI(TAG, "Wasserhahn öffnen");
     servo_set_position(g_servo_config.servo_open_us);
 

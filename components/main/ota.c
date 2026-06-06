@@ -8,6 +8,7 @@
 #include "esp_timer.h"
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
+#include "esp_crt_bundle.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -99,13 +100,15 @@ static void ota_update_task(void *pvParameters)
     strncpy(ota_state.message, "Verbinde mit Server...", sizeof(ota_state.message) - 1);
     xSemaphoreGive(ota_mutex);
     
-    // HTTP-Client Konfiguration
+    // HTTP-Client Konfiguration mit TLS
     esp_http_client_config_t http_config = {
         .url = url,
         .timeout_ms = OTA_TIMEOUT_MS,
         .keep_alive_enable = true,
         .buffer_size = 1024,
         .buffer_size_tx = 1024,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .skip_cert_common_name_check = true,
     };
     
     // HTTPS OTA Konfiguration

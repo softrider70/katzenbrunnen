@@ -1,5 +1,6 @@
 #include "servo.h"
 #include "config.h"
+#include "watchdog.h"
 #include "esp_log.h"
 #include "esp_err.h"
 #include "driver/ledc.h"
@@ -146,7 +147,14 @@ void servo_open_valve(void)
     servo_set_position(g_servo_config.servo_open_us);
 
     // FET nach konfigurierbarer Zeit ausschalten (Strom sparen)
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
+    for (int i = 0; i < g_servo_config.fet_on_time_ms / 100; i++) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+        watchdog_feed();
+    }
+    if (g_servo_config.fet_on_time_ms % 100 != 0) {
+        vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms % 100));
+        watchdog_feed();
+    }
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 }
 
@@ -187,7 +195,14 @@ void servo_close_valve(void)
     // FET einschalten, Servo positionieren, Timeout, FET aus
     gpio_set_level(GPIO_SERVO_ENABLE, 1);
     servo_set_position(g_servo_config.servo_close_us);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
+    for (int i = 0; i < g_servo_config.fet_on_time_ms / 100; i++) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+        watchdog_feed();
+    }
+    if (g_servo_config.fet_on_time_ms % 100 != 0) {
+        vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms % 100));
+        watchdog_feed();
+    }
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 }
 
@@ -210,7 +225,14 @@ void servo_emergency_close(void)
     // FET einschalten, Servo positionieren, Timeout, FET aus
     gpio_set_level(GPIO_SERVO_ENABLE, 1);
     servo_set_position(g_servo_config.servo_close_us);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
+    for (int i = 0; i < g_servo_config.fet_on_time_ms / 100; i++) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+        watchdog_feed();
+    }
+    if (g_servo_config.fet_on_time_ms % 100 != 0) {
+        vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms % 100));
+        watchdog_feed();
+    }
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 
     ESP_LOGE(TAG, "EMERGENCY: Wasserhahn geschlossen");

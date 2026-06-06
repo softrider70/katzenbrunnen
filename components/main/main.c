@@ -73,38 +73,54 @@ static void load_servo_config_from_nvs(void)
     esp_err_t ret;
     uint32_t value;
 
-    // motion_timeout_ms
+    // motion_timeout_ms (10-300s = 10000-300000ms)
     ret = nvs_get_u32(g_nvs_handle, NVS_KEY_MOTION_TIMEOUT_MS, &value);
     if (ret == ESP_OK) {
-        g_servo_config.motion_timeout_ms = value;
-        ESP_LOGI(TAG, "Motion Timeout aus NVS: %lu ms", value);
+        if (value >= 10000 && value <= 300000) {
+            g_servo_config.motion_timeout_ms = value;
+            ESP_LOGI(TAG, "Motion Timeout aus NVS: %lu ms", value);
+        } else {
+            ESP_LOGW(TAG, "Motion Timeout aus NVS ungültig (%lu ms), verwende Default: %lu ms", value, g_servo_config.motion_timeout_ms);
+        }
     } else {
         ESP_LOGI(TAG, "Motion Timeout nicht in NVS, verwende Default: %lu ms", g_servo_config.motion_timeout_ms);
     }
 
-    // servo_open_us
+    // servo_open_us (100-1000µs)
     ret = nvs_get_u32(g_nvs_handle, NVS_KEY_SERVO_OPEN_US, &value);
     if (ret == ESP_OK) {
-        g_servo_config.servo_open_us = value;
-        ESP_LOGI(TAG, "Servo Open aus NVS: %lu us", value);
+        if (value >= 100 && value <= 1000) {
+            g_servo_config.servo_open_us = value;
+            ESP_LOGI(TAG, "Servo Open aus NVS: %lu us", value);
+        } else {
+            ESP_LOGW(TAG, "Servo Open aus NVS ungültig (%lu us), verwende Default: %lu us", value, g_servo_config.servo_open_us);
+        }
     } else {
         ESP_LOGI(TAG, "Servo Open nicht in NVS, verwende Default: %lu us", g_servo_config.servo_open_us);
     }
 
-    // servo_close_us
+    // servo_close_us (100-1000µs)
     ret = nvs_get_u32(g_nvs_handle, NVS_KEY_SERVO_CLOSE_US, &value);
     if (ret == ESP_OK) {
-        g_servo_config.servo_close_us = value;
-        ESP_LOGI(TAG, "Servo Close aus NVS: %lu us", value);
+        if (value >= 100 && value <= 1000) {
+            g_servo_config.servo_close_us = value;
+            ESP_LOGI(TAG, "Servo Close aus NVS: %lu us", value);
+        } else {
+            ESP_LOGW(TAG, "Servo Close aus NVS ungültig (%lu us), verwende Default: %lu us", value, g_servo_config.servo_close_us);
+        }
     } else {
         ESP_LOGI(TAG, "Servo Close nicht in NVS, verwende Default: %lu us", g_servo_config.servo_close_us);
     }
 
-    // fet_on_time_ms
+    // fet_on_time_ms (1-10s = 1000-10000ms)
     ret = nvs_get_u32(g_nvs_handle, NVS_KEY_FET_ON_TIME_MS, &value);
     if (ret == ESP_OK) {
-        g_servo_config.fet_on_time_ms = value;
-        ESP_LOGI(TAG, "FET On Time aus NVS: %lu ms", value);
+        if (value >= 1000 && value <= 10000) {
+            g_servo_config.fet_on_time_ms = value;
+            ESP_LOGI(TAG, "FET On Time aus NVS: %lu ms", value);
+        } else {
+            ESP_LOGW(TAG, "FET On Time aus NVS ungültig (%lu ms), verwende Default: %lu ms", value, g_servo_config.fet_on_time_ms);
+        }
     } else {
         ESP_LOGI(TAG, "FET On Time nicht in NVS, verwende Default: %lu ms", g_servo_config.fet_on_time_ms);
     }

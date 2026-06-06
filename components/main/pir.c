@@ -37,9 +37,9 @@ esp_err_t pir_init(void)
 {
     esp_err_t ret;
     
-    // PIR Sensor GPIO konfigurieren (HIGH bei Bewegung -> beide Flanken erfassen)
+    // PIR Sensor GPIO konfigurieren (HIGH bei Bewegung -> nur steigende Flanke erfassen)
     gpio_config_t io_conf = {
-        .intr_type = GPIO_INTR_ANYEDGE,
+        .intr_type = GPIO_INTR_POSEDGE,
         .mode = GPIO_MODE_INPUT,
         .pin_bit_mask = (1ULL << GPIO_PIR_SENSOR),
         .pull_down_en = 1,

@@ -470,7 +470,7 @@ static void control_task(void *pvParameters)
         } else {
             if (motion) {
                 last_motion_open = now;
-                ESP_LOGD(TAG, "HIGH-Signal während offen -> Timeout zurückgesetzt");
+                ESP_LOGI(TAG, "HIGH-Signal während offen -> Timeout zurückgesetzt");
             }
             uint64_t time_since_motion = (now - last_motion_open) / 1000ULL;
             if (time_since_motion >= g_servo_config.motion_timeout_ms) {

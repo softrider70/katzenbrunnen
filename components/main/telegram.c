@@ -2,6 +2,7 @@
 #include "nvs_flash.h"
 #include "esp_log.h"
 #include "esp_http_client.h"
+#include "esp_crt_bundle.h"
 #include <string.h>
 
 static const char *TAG = "telegram";
@@ -115,12 +116,14 @@ esp_err_t telegram_send_message(const char *message)
         return ESP_ERR_NO_MEM;
     }
 
-    // HTTP-Client Konfiguration
+    // HTTP-Client Konfiguration mit TLS
     esp_http_client_config_t config = {
         .url = url,
         .method = HTTP_METHOD_POST,
         .event_handler = telegram_http_event_handler,
         .timeout_ms = 5000,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .skip_cert_common_name_check = true,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -179,12 +182,14 @@ esp_err_t telegram_send_message_markdown(const char *message)
         return ESP_ERR_NO_MEM;
     }
 
-    // HTTP-Client Konfiguration
+    // HTTP-Client Konfiguration mit TLS
     esp_http_client_config_t config = {
         .url = url,
         .method = HTTP_METHOD_POST,
         .event_handler = telegram_http_event_handler,
         .timeout_ms = 5000,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .skip_cert_common_name_check = true,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);

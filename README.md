@@ -63,17 +63,14 @@ GPIO5   → 2N7000 MOSFET Gate (Low-Side-Switching für Servo-Stromversorgung)
 ## Funktionsweise
 
 ### Automatischer Betrieb:
-1. **PIR-Sensor** erkennt Katze beim Betreten der Badewanne (pulsierendes Signal: 2.5s HIGH → 5s LOW → 2.5s HIGH)
-2. **PIR-Logik für pulsierendes Signal:**
-   - HIGH-Signal zurücksetzt "Objekt weg"-Timer
-   - LOW-Signal prüft ob 10s ohne HIGH → Objekt weg, Timer zurücksetzen
-   - Öffnen erst nach 10s HIGH-Signale (MIN_MOTION_DURATION_MS)
-   - Objekt gilt als weg wenn 10s durchgehend kein HIGH (PIR_MOTION_TIMEOUT_MS)
+1. **PIR-Sensor** erkennt Katze beim Betreten der Badewanne (HIGH-Signal bei Bewegung)
+2. **PIR-Logik (vereinfacht):**
+   - Bei HIGH-Signal wird Wasserhahn sofort geöffnet
+   - Während offen: HIGH-Signal setzt Timeout zurück
+   - Nach 8s (einstellbar, 1-30s) ohne HIGH-Signal schließt der Servo automatisch (CLOSE_TIMEOUT_MS)
 3. **Servo** öffnet Wasserhahn bis zum eingestellten Winkel
 4. **Wasser fließt** solange der PIR-Sensor Bewegung feststellt
-5. **Timeout-Schutz:** Nach 8s (einstellbar, 1-30s) ohne HIGH-Signal schließt der Servo automatisch (CLOSE_TIMEOUT_MS)
-6. **Cooldown:** Nach Schließen 30s Cooldown vor erneutem Öffnen (PIR_COOLDOWN_MS)
-7. **Aktivierungszykler** werden in NVS gespeichert
+5. **Aktivierungszykler** werden in NVS gespeichert
 
 ### Manuel Betrieb:
 - **Taster** löst sofortige Wasserhahn-Öffnung aus

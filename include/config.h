@@ -18,9 +18,6 @@
 #define SERVO_OPEN_ANGLE_US      120    // Servo-Position für geöffneten Wasserhahn (Pulsweite in µs)
 #define SERVO_CLOSE_ANGLE_US     750    // Servo-Position für geschlossenen Wasserhahn (Pulsweite in µs)
 #define CLOSE_TIMEOUT_MS         8000   // Timeout ohne HIGH-Signal vor Schließen (ms) - Default 8s
-#define MIN_MOTION_DURATION_MS  10000   // Minimale Bewegungsdauer für Aktivierung (ms) - für pulsierendes PIR-Signal
-#define PIR_COOLDOWN_MS         30000   // Cooldown nach Schließen vor erneuter Aktivierung (ms)
-#define PIR_MOTION_TIMEOUT_MS   10000   // Timeout ohne HIGH-Signal -> Objekt weg (ms)
 
 // ============================================================================
 // Servo Configuration - Gigaline Standard Servo
@@ -222,8 +219,7 @@ esp_err_t save_servo_config_to_nvs(void);
 // ============================================================================
 #define DELAY_1S_MS            1000    // 1 Sekunde Delay
 #define DELAY_5S_MS            5000    // 5 Sekunden Delay
-#define DELAY_500MS_MS         500     // 500ms Delay
-#define DELAY_100MS_MS         100     // 100ms Delay
+#define DELAY_500MS_MS         500     // 500ms Delay für Wasserhahn-Logik
 #define DELAY_50MS_MS          50      // 50ms Delay
 #define DELAY_30S_MS           30000   // 30 Sekunden Delay
 

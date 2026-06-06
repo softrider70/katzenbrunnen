@@ -360,13 +360,12 @@ static void close_water_valve(void)
 }
 
 /**
- * @brief Steuerungs-Task - Wasserhahn-Logik (alleinige Entscheidungsinstanz)
+ * @brief Steuerungs-Task - Wasserhahn-Logik (vereinfacht)
  *
- * Ablauf für pulsierendes PIR-Signal (2.5s HIGH → 5s LOW → 2.5s HIGH):
- *  - Geschlossen: bei Bewegungserkennung Timer starten; wenn über MIN_MOTION_DURATION_MS
- *    genügend HIGH-Signale kommen, öffnen (sofern kein Cooldown aktiv ist).
- *  - Offen: bei HIGH-Signal Timeout zurücksetzen; nach MOTION_TIMEOUT_MS ohne
- *    HIGH-Signal schließen und Cooldown starten.
+ * Ablauf für vereinfachte PIR-Erkennung:
+ *  - Geschlossen: bei HIGH-Signal sofort öffnen
+ *  - Offen: bei HIGH-Signal Timeout zurücksetzen; nach close_timeout_ms ohne HIGH schließen
+ *  - Kein Cooldown, keine komplexe Bewegungsphasen
  */
 static void control_task(void *pvParameters)
 {
@@ -376,10 +375,7 @@ static void control_task(void *pvParameters)
     watchdog_subscribe();
 
     // Task-lokale Zustände (nur in diesem Task verwendet -> kein Mutex nötig)
-    uint64_t motion_begin = 0;      // Beginn der aktuellen Bewegungsphase
     uint64_t last_motion_open = 0;  // Letzte HIGH-Signal während Ventil offen
-    uint64_t last_high_signal = 0;  // Letztes HIGH-Signal (für pulsierendes PIR)
-    uint64_t cooldown_until = 0;    // Zeitpunkt bis Cooldown aktiv ist
     led_state_t last_led = LED_STATE_IDLE;  // Zuletzt gesetzte LED-Farbe (nur bei Änderung senden)
 
     while (1) {
@@ -388,51 +384,23 @@ static void control_task(void *pvParameters)
         bool valve_open = servo_is_valve_open();
 
         if (!valve_open) {
-            if (now < cooldown_until) {
-                // Cooldown läuft -> nicht öffnen
-                motion_begin = 0;
-                last_high_signal = 0;
-            } else if (motion) {
-                // HIGH-Signal erkannt
-                if (motion_begin == 0) {
-                    motion_begin = now;  // Bewegungsphase beginnt
-                    last_high_signal = now;
-                } else {
-                    last_high_signal = now;  // Timer für "Objekt weg" zurücksetzen
-                    // Prüfen ob genügend Bewegung über Zeit erkannt wurde
-                    if ((now - motion_begin) >= (MIN_MOTION_DURATION_MS * 1000ULL)) {
-                        ESP_LOGI(TAG, "Bewegung >= %d ms -> Wasserhahn öffnen", MIN_MOTION_DURATION_MS);
-                        open_water_valve();
-                        last_motion_open = now;
-                        motion_begin = 0;
-                        last_high_signal = 0;
-                    }
-                }
-            } else {
-                // LOW-Signal (kein HIGH)
-                if (motion_begin > 0) {
-                    // Prüfen ob Objekt weg (kein HIGH für PIR_MOTION_TIMEOUT_MS)
-                    if ((now - last_high_signal) >= (PIR_MOTION_TIMEOUT_MS * 1000ULL)) {
-                        // Objekt weg -> Bewegungsphase abbrechen
-                        uint64_t duration_ms = (now - motion_begin) / 1000ULL;
-                        if (duration_ms >= 1000) {  // Nur Ereignisse >= 1 Sekunde protokollieren
-                            pir_add_event(duration_ms);
-                        }
-                        motion_begin = 0;
-                        last_high_signal = 0;
-                    }
-                }
+            // Wasserhahn geschlossen: bei HIGH sofort öffnen
+            if (motion) {
+                ESP_LOGI(TAG, "PIR HIGH -> Wasserhahn öffnen");
+                open_water_valve();
+                last_motion_open = now;
             }
         } else {
-            if (pir_get_gpio_level()) {
+            // Wasserhahn offen: bei HIGH Timeout zurücksetzen
+            if (motion) {
                 last_motion_open = now;
-                ESP_LOGI(TAG, "HIGH-Signal während offen -> Timeout zurückgesetzt");
+                ESP_LOGD(TAG, "HIGH-Signal während offen -> Timeout zurückgesetzt");
             }
+            // Prüfen ob Timeout erreicht
             uint64_t time_since_motion = (now - last_motion_open) / 1000ULL;
             if (time_since_motion >= g_servo_config.close_timeout_ms) {
                 ESP_LOGI(TAG, "Timeout ohne HIGH-Signal (%llu ms) -> Wasserhahn schließen", (unsigned long long)time_since_motion);
                 close_water_valve();
-                cooldown_until = now + (PIR_COOLDOWN_MS * 1000ULL);
             }
         }
 
@@ -440,7 +408,7 @@ static void control_task(void *pvParameters)
         led_state_t led_target;
         if (valve_open) {
             led_target = LED_STATE_OPEN;        // blau: Wasserhahn offen
-        } else if (motion && now >= cooldown_until) {
+        } else if (motion) {
             led_target = LED_STATE_MOTION;      // gelb: Bewegung erkannt
         } else {
             led_target = LED_STATE_IDLE;        // grün: bereit
@@ -451,7 +419,7 @@ static void control_task(void *pvParameters)
         }
 
         watchdog_feed();
-        vTaskDelay(pdMS_TO_TICKS(DELAY_100MS_MS));
+        vTaskDelay(pdMS_TO_TICKS(DELAY_500MS_MS));
     }
 }
 
@@ -495,7 +463,7 @@ static void app_task(void *pvParameters)
         }
 
         watchdog_feed();
-        vTaskDelay(pdMS_TO_TICKS(DELAY_100MS_MS));  // 100ms Zyklus
+        vTaskDelay(pdMS_TO_TICKS(DELAY_500MS_MS));  // 500ms Zyklus
     }
 }
 

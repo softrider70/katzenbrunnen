@@ -25,7 +25,6 @@ static void led_send_color(uint8_t r, uint8_t g, uint8_t b)
 
 esp_err_t led_init(void)
 {
-#if LED_ENABLE
     ESP_LOGI(TAG, "Initialisiere WS2812B an GPIO%d", GPIO_LED_DATA);
 
     rmt_tx_channel_config_t tx_chan_config = {
@@ -60,15 +59,11 @@ esp_err_t led_init(void)
     }
 
     led_set_state(LED_STATE_IDLE);  // Start: System bereit
-#else
-    ESP_LOGI(TAG, "LEDs deaktiviert (LED_ENABLE=false)");
-#endif
     return ESP_OK;
 }
 
 void led_set_state(led_state_t state)
 {
-#if LED_ENABLE
     switch (state) {
         case LED_STATE_OFF:
             led_send_color(0, 0, 0);
@@ -89,5 +84,4 @@ void led_set_state(led_state_t state)
             led_send_color(0, 0, 0);
             break;
     }
-#endif
 }

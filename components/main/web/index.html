@@ -45,7 +45,6 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <div class="tab-content active" id="dashboard">
 <div class="status-row"><span>Wasserhahn:</span><span id="valve-state">-</span></div>
 <div class="status-row"><span>Bewegung:</span><span id="motion-state">-</span></div>
-<div class="status-row"><span>Batterie:</span><span id="battery-state">-</span></div>
 <div class="status-row"><span>WiFi:</span><span id="wifi-state">-</span></div>
 <div class="status-row"><span>SSID:</span><span id="wifi-ssid">-</span></div>
 <div class="status-row"><span>IP:</span><span id="wifi-ip">-</span></div>
@@ -200,8 +199,6 @@ document.getElementById('valve-state').textContent=d.valve_open?'GEÖFFNET':'GES
 document.getElementById('valve-state').style.color=d.valve_open?'#ef4444':'#22c55e';
 document.getElementById('motion-state').textContent=d.motion_detected?'JA':'NEIN';
 document.getElementById('motion-state').style.color=d.motion_detected?'#22c55e':'#6b7280';
-document.getElementById('battery-state').textContent=d.battery_voltage.toFixed(2)+'V ('+d.battery_percent+'%)';
-document.getElementById('battery-state').style.color=d.battery_percent<20?'#ef4444':'#166534';
 document.getElementById('wifi-state').textContent=d.wifi_connected?'Verbunden':'Getrennt';
 document.getElementById('wifi-state').style.color=d.wifi_connected?'#22c55e':'#ef4444';
 document.getElementById('wifi-ssid').textContent=d.wifi_ssid;
@@ -250,7 +247,7 @@ tbody.appendChild(tr);
 }).catch(e=>showMsg('codes','Fehler: '+e.message,true));
 }
 function errText(id){
-const map={'0x01':'Stack Overflow','0x02':'Watchdog Trigger','0x03':'Servo Failure','0x04':'Battery Critical','0x05':'PIR Failure','0x06':'ADC Failure','0x07':'NVS Failure','0x08':'WiFi Failure','0x09':'OTA Failure','0x0A':'Memory Allocation'};
+const map={'0x01':'Stack Overflow','0x02':'Watchdog Trigger','0x03':'Servo Failure','0x04':'PIR Failure','0x05':'ADC Failure','0x06':'NVS Failure','0x07':'WiFi Failure','0x08':'OTA Failure','0x09':'Memory Allocation'};
 return map['0x'+id.toString(16).padStart(2,'0').toUpperCase()]||'Unknown';
 }
 function loadWifiConfig(){

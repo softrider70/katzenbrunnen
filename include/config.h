@@ -11,12 +11,6 @@
 #define GPIO_BUTTON      10  // manueller Taster
 #define GPIO_SERVO       11  // Gigaline Standard Servo (Wasserhahn-Steuerung)
 #define GPIO_SERVO_ENABLE 5  // 2N7000 MOSFET Gate (Low-Side-Switching für Servo-Stromversorgung)
-#define GPIO_BATTERY_ADC 1   // ADC1_CH1 - Batteriespannungsmessung
-
-// ============================================================================
-// LED Configuration
-// ============================================================================
-#define LED_ENABLE false  // LEDs aktivieren (true) oder deaktivieren (false)
 
 // ============================================================================
 // Katzenbrunnen Parameter
@@ -27,23 +21,6 @@
 #define MIN_MOTION_DURATION_MS  10000   // Minimale Bewegungsdauer für Aktivierung (ms) - für pulsierendes PIR-Signal
 #define PIR_COOLDOWN_MS         30000   // Cooldown nach Schließen vor erneuter Aktivierung (ms)
 #define PIR_MOTION_TIMEOUT_MS   10000   // Timeout ohne HIGH-Signal -> Objekt weg (ms)
-
-// ============================================================================
-// Batterie-Konfiguration (LiPo 2S, 7.4V nominal, 2Ah)
-// ============================================================================
-// WICHTIG (Hardware): Bei 2S liegt die Packspannung bei bis zu 8.4V. Der
-// Spannungsteiler muss so dimensioniert sein, dass am ADC max. ~3.0V anliegen.
-// Mit R1=22k / R2=10k ergibt sich Faktor 3.2 -> 8.4V/3.2 = 2.625V (sicher).
-#define BATTERY_CELLS          2       // Anzahl Zellen in Serie (2S)
-#define BATTERY_CAPACITY_AH     2.0     // Kapazität in Ah
-#define BATTERY_VOLTAGE_MIN     3.0     // Minimale Zellspannung (V) - Abschaltung
-#define BATTERY_VOLTAGE_MAX     4.2     // Maximale Zellspannung (V) - voll geladen
-#define BATTERY_VOLTAGE_NOMINAL 3.7     // Nominale Zellspannung (V)
-#define ADC_ATTENUATION        ADC_ATTEN_DB_12  // ADC Dämpfung (~0-3.1V Messbereich)
-#define ADC_UNIT               ADC_UNIT_1
-#define ADC_CHANNEL            ADC_CHANNEL_0   // GPIO1 = ADC1_CH0 auf ESP32-S3
-#define BATTERY_DIVIDER_R1     22000   // Spannungsteiler R1 (Ohm) - oben
-#define BATTERY_DIVIDER_R2     10000   // Spannungsteiler R2 (Ohm) - unten (an ADC)
 
 // ============================================================================
 // Servo Configuration - Gigaline Standard Servo
@@ -102,7 +79,6 @@
 #define TASK_STACK_WEB          8192    // Web-Server-Task Stack (httpd)
 #define TASK_STACK_WIFI         4096    // WiFi-Task Stack
 #define TASK_STACK_OTA          8192    // OTA-Task Stack
-#define TASK_STACK_BATTERY      3072    // Battery-Monitor-Task Stack
 #define TASK_STACK_APP          4096    // Hauptanwendungs-Task Stack
 #define TASK_STACK_CONTROL      4096    // Steuerungs-Task Stack
 
@@ -113,7 +89,6 @@
 #define TASK_PRIO_WEB           3       // Web-Server-Task Priorität
 #define TASK_PRIO_WIFI          2       // WiFi-Task Priorität
 #define TASK_PRIO_OTA           1       // OTA-Task Priorität
-#define TASK_PRIO_BATTERY       2       // Battery-Monitor-Task Priorität
 #define TASK_PRIO_APP           3       // Hauptanwendungs-Task Priorität
 
 // Task Core Affinity
@@ -123,7 +98,6 @@
 // ============================================================================
 // WiFi Configuration
 // ============================================================================
-#define WIFI_ENABLE false  // WiFi aktivieren (true) oder deaktivieren (false)
 #define WIFI_SSID_MAX_LEN       32
 #define WIFI_PASSWORD_MAX_LEN   64
 #define WIFI_RETRY_INTERVAL_MS  5000    // WiFi Verbindungsretry Intervall
@@ -151,18 +125,6 @@
 #define OTA_URL_MAX_LEN         256
 #define OTA_TIMEOUT_MS          30000   // OTA Timeout
 #define OTA_HEALTH_CHECK_DELAY_MS 60000  // Health-Check nach OTA (60s)
-
-// ============================================================================
-// Power Management Configuration
-// ============================================================================
-#define POWER_DEEP_SLEEP_ENABLE       true   // Deep Sleep aktivieren
-#define POWER_DEEP_SLEEP_TIMEOUT_MS  30000   // Deep Sleep Timeout nach Inaktivität (ms) - 30 Sekunden
-#define POWER_DEEP_SLEEP_WAKEUP_GPIO GPIO_PIR_SENSOR  // GPIO für Deep Sleep Wake-Up (PIR-Sensor)
-#define POWER_DEEP_SLEEP_WAKEUP_LEVEL 1  // Wake-Up Level (1=HIGH, 0=LOW)
-#define WIFI_SLEEP_START_HOUR   22      // WiFi Sleep Start (Uhrzeit)
-#define WIFI_SLEEP_END_HOUR     6       // WiFi Sleep Ende (Uhrzeit)
-#define DEEP_SLEEP_INACTIVITY_MS 300000 // Deep Sleep nach Inaktivität (5 min) - veraltet
-#define BATTERY_CRITICAL_VOLTAGE 3.4    // Kritische Spannung pro Zelle (V)
 
 // ============================================================================
 // Stack Monitoring Configuration

@@ -2,7 +2,6 @@
 #include "config.h"
 #include "error_log.h"
 #include "wifi.h"
-#include "battery.h"
 #include "servo.h"
 #include "pir.h"
 #include "ota.h"
@@ -68,28 +67,22 @@ static esp_err_t status_handler(httpd_req_t *req)
     char json_response[512];
     char ip_str[16] = "Not connected";
     char ssid[32] = "Not connected";
-    
+
     wifi_get_ip(ip_str);
     wifi_get_ssid(ssid);
-    
-    float batt_voltage = battery_get_voltage();
-    uint8_t batt_percent = battery_get_percent();
-    bool batt_critical = battery_is_critical();
+
     bool valve_open = servo_is_valve_open();
     bool motion_detected = pir_motion_detected();
     int8_t rssi = wifi_get_rssi();
-    
+
     heap_info_t heap_info;
     heap_monitor_get_info(&heap_info);
-    
+
     snprintf(json_response, sizeof(json_response),
         "{"
         "\"status\":\"%s\","
         "\"valve_open\":%s,"
         "\"motion_detected\":%s,"
-        "\"battery_voltage\":%.2f,"
-        "\"battery_percent\":%d,"
-        "\"battery_critical\":%s,"
         "\"wifi_connected\":%s,"
         "\"wifi_ssid\":\"%s\","
         "\"wifi_ip\":\"%s\","
@@ -105,9 +98,6 @@ static esp_err_t status_handler(httpd_req_t *req)
         valve_open ? "OPEN" : "CLOSED",
         valve_open ? "true" : "false",
         motion_detected ? "true" : "false",
-        batt_voltage,
-        batt_percent,
-        batt_critical ? "true" : "false",
         wifi_is_connected() ? "true" : "false",
         ssid,
         ip_str,

@@ -18,7 +18,6 @@
 #include "config.h"
 #include "pir.h"
 #include "servo.h"
-#include "battery.h"
 #include "error_log.h"
 #include "stack_monitor.h"
 #include "heap_monitor.h"
@@ -224,10 +223,7 @@ static esp_err_t init_hardware(void)
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "LED-Init fehlgeschlagen (nicht kritisch): %s", esp_err_to_name(ret));
     }
-    
-    ret = battery_init();
-    if (ret != ESP_OK) return ret;
-    
+
     ret = stack_monitor_init();
     if (ret != ESP_OK) return ret;
     
@@ -237,7 +233,6 @@ static esp_err_t init_hardware(void)
     ret = watchdog_init();
     if (ret != ESP_OK) return ret;
 
-#if WIFI_ENABLE
     ret = wifi_init();
     if (ret != ESP_OK) return ret;
 
@@ -249,9 +244,6 @@ static esp_err_t init_hardware(void)
 
     ret = ota_init();
     if (ret != ESP_OK) return ret;
-#else
-    ESP_LOGI(TAG, "WiFi/Web/OTA deaktiviert (WIFI_ENABLE=false)");
-#endif
 
     ESP_LOGI(TAG, "Hardware initialisiert");
     return ESP_OK;
@@ -281,40 +273,9 @@ __attribute__((unused)) static void deinit_modules(void)
     servo_deinit();
     ota_deinit();
     error_log_deinit();
-    battery_deinit();
     deinit_hardware();
-    
+
     ESP_LOGI(TAG, "Alle Module deinitialisiert");
-}
-
-// ============================================================================
-// Deep Sleep Wake-Up konfigurieren
-// ============================================================================
-static esp_err_t configure_deep_sleep_wakeup(void)
-{
-#if POWER_DEEP_SLEEP_ENABLE
-    // GPIO4 als RTC GPIO konfigurieren für Deep Sleep Wake-Up
-    rtc_gpio_init(POWER_DEEP_SLEEP_WAKEUP_GPIO);
-    rtc_gpio_set_direction(POWER_DEEP_SLEEP_WAKEUP_GPIO, RTC_GPIO_MODE_INPUT_ONLY);
-    rtc_gpio_pulldown_en(POWER_DEEP_SLEEP_WAKEUP_GPIO);
-    rtc_gpio_pullup_dis(POWER_DEEP_SLEEP_WAKEUP_GPIO);
-
-    // GPIO Wake-Up für Deep Sleep aktivieren (ESP32-S3: ext1-Wakeup-API)
-    esp_err_t sleep_ret = esp_sleep_enable_ext1_wakeup_io(
-        BIT(POWER_DEEP_SLEEP_WAKEUP_GPIO),
-        POWER_DEEP_SLEEP_WAKEUP_LEVEL ? ESP_EXT1_WAKEUP_ANY_HIGH : ESP_EXT1_WAKEUP_ANY_LOW
-    );
-
-    if (sleep_ret != ESP_OK) {
-        ESP_LOGE(TAG, "GPIO Wake-Up Konfiguration fehlgeschlagen: %s", esp_err_to_name(sleep_ret));
-        return sleep_ret;
-    }
-
-    ESP_LOGI(TAG, "Deep Sleep Wake-Up konfiguriert: GPIO%d (Level=%s)",
-             POWER_DEEP_SLEEP_WAKEUP_GPIO,
-             POWER_DEEP_SLEEP_WAKEUP_LEVEL ? "HIGH" : "LOW");
-#endif
-    return ESP_OK;
 }
 
 /**
@@ -422,18 +383,12 @@ static void control_task(void *pvParameters)
     uint64_t last_motion_open = 0;  // Letzte HIGH-Signal während Ventil offen
     uint64_t last_high_signal = 0;  // Letztes HIGH-Signal (für pulsierendes PIR)
     uint64_t cooldown_until = 0;    // Zeitpunkt bis Cooldown aktiv ist
-    uint64_t last_any_motion = 0;   // Letzte beliebige Bewegung (für Deep Sleep)
     led_state_t last_led = LED_STATE_IDLE;  // Zuletzt gesetzte LED-Farbe (nur bei Änderung senden)
 
     while (1) {
         uint64_t now = esp_timer_get_time();
         bool motion = pir_motion_detected();
         bool valve_open = servo_is_valve_open();
-
-        // Letzte Bewegung für Deep Sleep aktualisieren
-        if (motion) {
-            last_any_motion = now;
-        }
 
         if (!valve_open) {
             if (now < cooldown_until) {
@@ -484,51 +439,6 @@ static void control_task(void *pvParameters)
             }
         }
 
-        // Deep Sleep Prüfung (nur wenn Ventil geschlossen und Cooldown abgelaufen)
-#if POWER_DEEP_SLEEP_ENABLE
-        if (!valve_open && now >= cooldown_until) {
-            uint64_t inactivity_ms = (now - last_any_motion) / 1000ULL;
-            if (inactivity_ms >= POWER_DEEP_SLEEP_TIMEOUT_MS) {
-                // Prüfen ob nachts (Deep Sleep aktivieren)
-                time_t now_sec = time(NULL);
-
-                // Wenn Zeit nicht synchronisiert, kein Deep Sleep
-                if (now_sec < 1000000) {
-                    ESP_LOGW(TAG, "Zeit nicht synchronisiert -> kein Deep Sleep");
-                } else {
-                    struct tm *tm_info = localtime(&now_sec);
-                    int current_hour = tm_info->tm_hour;
-
-                    bool is_night = false;
-                    if (WIFI_SLEEP_START_HOUR > WIFI_SLEEP_END_HOUR) {
-                        // Sleep-Fenster über Mitternacht (z.B. 22:00 - 06:00)
-                        is_night = (current_hour >= WIFI_SLEEP_START_HOUR || current_hour < WIFI_SLEEP_END_HOUR);
-                    } else {
-                        // Sleep-Fenster innerhalb eines Tages (z.B. 02:00 - 06:00)
-                        is_night = (current_hour >= WIFI_SLEEP_START_HOUR && current_hour < WIFI_SLEEP_END_HOUR);
-                    }
-
-                    if (is_night) {
-                        ESP_LOGI(TAG, "=== DEEP SLEEP AKTIVIEREN ===");
-                        ESP_LOGI(TAG, "Inaktivität >= %d ms (Nacht) -> Deep Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
-                        ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
-
-                        // Watchdog deaktivieren vor Deep Sleep
-                        watchdog_stop();
-
-                        // Deep Sleep Wake-Up per PIR-GPIO konfigurieren
-                        configure_deep_sleep_wakeup();
-
-                        // Deep Sleep aktivieren
-                        esp_deep_sleep_start();
-                    } else {
-                        ESP_LOGI(TAG, "Tagsüber -> kein Sleep (Light Sleep deaktiviert)");
-                    }
-                }
-            }
-        }
-#endif
-
         // Status-LED aktualisieren (nur bei Änderung senden)
         led_state_t led_target;
         if (valve_open) {
@@ -541,21 +451,6 @@ static void control_task(void *pvParameters)
         if (led_target != last_led) {
             led_set_state(led_target);
             last_led = led_target;
-        }
-
-        // Batterie-Abschaltung bei kritischer Spannung
-        if (battery_is_critical()) {
-            ESP_LOGE(TAG, "Kritische Batteriespannung -> Wasserhahn schließen und Deep Sleep");
-            led_set_state(LED_STATE_CRITICAL);  // rot: kritische Batterie
-            if (valve_open) {
-                close_water_valve();
-            }
-
-            // Watchdog deaktivieren vor Deep Sleep
-            watchdog_stop();
-
-            // Deep Sleep aktivieren (nur durch Reset aufweckbar)
-            esp_deep_sleep_start();
         }
 
         watchdog_feed();
@@ -596,15 +491,12 @@ static void app_task(void *pvParameters)
             xSemaphoreTake(state_mutex, portMAX_DELAY);
             uint32_t activations = activation_count;
             xSemaphoreGive(state_mutex);
-            
-            float batt_voltage = battery_get_voltage();
-            uint8_t batt_percent = battery_get_percent();
-            
-            ESP_LOGI(TAG, "Status - Wasserhahn: %s, Zykler: %lu, Batterie: %.2fV (%d%%)", 
-                     valve_open ? "OFFEN" : "ZU", activations, batt_voltage, batt_percent);
+
+            ESP_LOGI(TAG, "Status - Wasserhahn: %s, Zykler: %lu",
+                     valve_open ? "OFFEN" : "ZU", activations);
             last_status = current_tick;
         }
-        
+
         watchdog_feed();
         vTaskDelay(pdMS_TO_TICKS(DELAY_100MS_MS));  // 100ms Zyklus
     }
@@ -645,11 +537,7 @@ void app_main(void)
     if (pir_start_task() != ESP_OK) {
         ESP_LOGE(TAG, "PIR-Task Start fehlgeschlagen");
     }
-    
-    if (battery_start_task() != ESP_OK) {
-        ESP_LOGE(TAG, "Battery-Task Start fehlgeschlagen");
-    }
-    
+
     if (stack_monitor_start_task() != ESP_OK) {
         ESP_LOGE(TAG, "Stack-Monitor-Task Start fehlgeschlagen");
     }
@@ -662,13 +550,9 @@ void app_main(void)
         ESP_LOGE(TAG, "Watchdog-Task Start fehlgeschlagen");
     }
 
-#if WIFI_ENABLE
     if (wifi_start_task() != ESP_OK) {
         ESP_LOGE(TAG, "WiFi-Task Start fehlgeschlagen");
     }
-#else
-    ESP_LOGI(TAG, "WiFi deaktiviert (WIFI_ENABLE=false)");
-#endif
 
     // Steuerungs-Task erstellen (Core 0)
     BaseType_t ret = xTaskCreatePinnedToCore(
@@ -698,6 +582,6 @@ void app_main(void)
         ESP_LOGE(TAG, "Fehler beim Erstellen des Application Tasks");
     } else {
         ESP_LOGI(TAG, "Katzenbrunnen erfolgreich initialisiert");
-        ESP_LOGI(TAG, "Task-Architektur: PIR/Battery/Stack/WDT/WiFi/Control/App auf Core 0");
+        ESP_LOGI(TAG, "Task-Architektur: PIR/Stack/WDT/WiFi/Control/App auf Core 0");
     }
 }

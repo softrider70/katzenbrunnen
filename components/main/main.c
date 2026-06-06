@@ -332,7 +332,7 @@ static esp_err_t init_nvs(void)
 }
 
 /**
- * @brief Aktivierungszykler in NVS speichern
+ * @brief Aktivierungszykler in NVS speichern (nur vor Deep Sleep aufrufen)
  */
 static void save_activation_count(void)
 {
@@ -342,6 +342,24 @@ static void save_activation_count(void)
         ESP_LOGI(TAG, "Aktivierungszykler gespeichert: %lu", activation_count);
     } else {
         ESP_LOGE(TAG, "Fehler beim Speichern der Aktivierungszykler");
+    }
+}
+
+/**
+ * @brief Aktivierungszykler vor Deep Sleep speichern
+ */
+static void save_activation_count_before_sleep(void)
+{
+    xSemaphoreTake(state_mutex, portMAX_DELAY);
+    uint32_t count = activation_count;
+    xSemaphoreGive(state_mutex);
+    
+    esp_err_t ret = nvs_set_u32(g_nvs_handle, NVS_ACTIVATION_COUNT_KEY, count);
+    if (ret == ESP_OK) {
+        nvs_commit(g_nvs_handle);
+        ESP_LOGI(TAG, "Aktivierungszykler vor Sleep gespeichert: %lu", count);
+    } else {
+        ESP_LOGE(TAG, "Fehler beim Speichern der Aktivierungszykler vor Sleep");
     }
 }
 
@@ -364,7 +382,7 @@ static void open_water_valve(void)
     xSemaphoreGive(state_mutex);
     
     ESP_LOGI(TAG, "Wasserhahn geöffnet (Zyklus %lu)", count);
-    save_activation_count();
+    // NVS-Speicherung entfernt - wird nur vor Deep Sleep durchgeführt (vermeidet Watchdog-Trigger)
 }
 
 /**
@@ -499,6 +517,9 @@ static void control_task(void *pvParameters)
                     // Watchdog deaktivieren vor Light Sleep
                     watchdog_stop();
 
+                    // Aktivierungszykler vor Sleep speichern
+                    save_activation_count_before_sleep();
+
                     // Light Sleep mit GPIO Wake-Up konfigurieren (IDF 6.0: pro-GPIO Level + globale Aktivierung)
                     gpio_wakeup_enable(POWER_DEEP_SLEEP_WAKEUP_GPIO,
                         POWER_DEEP_SLEEP_WAKEUP_LEVEL ? GPIO_INTR_HIGH_LEVEL : GPIO_INTR_LOW_LEVEL);
@@ -516,6 +537,9 @@ static void control_task(void *pvParameters)
 
                     // Watchdog deaktivieren vor Deep Sleep
                     watchdog_stop();
+
+                    // Aktivierungszykler vor Sleep speichern
+                    save_activation_count_before_sleep();
 
                     // Deep Sleep Wake-Up per PIR-GPIO konfigurieren
                     configure_deep_sleep_wakeup();
@@ -551,6 +575,9 @@ static void control_task(void *pvParameters)
 
             // Watchdog deaktivieren vor Deep Sleep
             watchdog_stop();
+
+            // Aktivierungszykler vor Sleep speichern
+            save_activation_count_before_sleep();
 
             // Deep Sleep aktivieren (nur durch Reset aufweckbar)
             esp_deep_sleep_start();

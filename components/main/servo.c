@@ -82,14 +82,7 @@ esp_err_t servo_init(void)
     // FET initial ausschalten (Servo stromlos)
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 
-    // FET kurz einschalten für Initialisierungs-Position
-    gpio_set_level(GPIO_SERVO_ENABLE, 1);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
-    servo_set_position(g_servo_config.servo_close_us);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
-    gpio_set_level(GPIO_SERVO_ENABLE, 0);
-
-    ESP_LOGI(TAG, "Servo-Modul initialisiert (GPIO %d, FET-Enable GPIO %d)", GPIO_SERVO, GPIO_SERVO_ENABLE);
+    ESP_LOGI(TAG, "Servo-Modul initialisiert (GPIO %d, FET-Enable GPIO %d) - FET stromlos", GPIO_SERVO, GPIO_SERVO_ENABLE);
     return ESP_OK;
 }
 

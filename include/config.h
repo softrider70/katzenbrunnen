@@ -156,7 +156,7 @@
 #define WIFI_SLEEP_START_HOUR   22      // WiFi Sleep Start (Uhrzeit)
 #define WIFI_SLEEP_END_HOUR     6       // WiFi Sleep Ende (Uhrzeit)
 #define DEEP_SLEEP_INACTIVITY_MS 300000 // Deep Sleep nach Inaktivität (5 min) - veraltet
-#define BATTERY_CRITICAL_VOLTAGE 3.2    // Kritische Spannung pro Zelle (V)
+#define BATTERY_CRITICAL_VOLTAGE 3.4    // Kritische Spannung pro Zelle (V)
 
 // ============================================================================
 // Stack Monitoring Configuration

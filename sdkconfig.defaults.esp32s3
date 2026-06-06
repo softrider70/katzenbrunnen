@@ -30,3 +30,6 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_ESP_CONSOLE_UART_DEFAULT=y
 # CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG is not set
 # CONFIG_ESP_CONSOLE_USB_CDC is not set
+
+# Web-Server: Mehr URI-Handler für Servo-Konfiguration (Standard: 16, benötigt: 21)
+CONFIG_HTTPD_MAX_URI_HANDLERS=32

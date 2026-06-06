@@ -47,6 +47,9 @@ static bool sntp_initialized = false;
 static void time_sync_notification_cb(struct timeval *tv)
 {
     ESP_LOGI(TAG, "Zeit synchronisiert: %s", ctime(&tv->tv_sec));
+
+    // Servo-Kalibrierung nach Zeitsynchronisierung ausführen
+    servo_calibrate();
 }
 
 static void initialize_sntp(void)

@@ -12,6 +12,11 @@
 esp_err_t servo_init(void);
 
 /**
+ * @brief Servo-Kalibrierung (Bewegungs-Test nach Systemstart)
+ */
+void servo_calibrate(void);
+
+/**
  * @brief Servo auf Position bewegen
  * @param pulse_us Pulsweite in Mikrosekunden
  */

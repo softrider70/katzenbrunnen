@@ -85,25 +85,42 @@ esp_err_t servo_init(void)
     // FET kurz einschalten für Initialisierungs-Position
     gpio_set_level(GPIO_SERVO_ENABLE, 1);
     vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
-
-    // Grundposition (geschlossen) anfahren
     servo_set_position(g_servo_config.servo_close_us);
     vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
-
-    // 30% in Richtung offen anfahren (Kalibrierung)
-    uint32_t range = g_servo_config.servo_open_us - g_servo_config.servo_close_us;
-    uint32_t test_position = g_servo_config.servo_close_us + (range * 3 / 10);
-    servo_set_position(test_position);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
-
-    // Wieder auf Grundposition zurückfahren
-    servo_set_position(g_servo_config.servo_close_us);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
-
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 
     ESP_LOGI(TAG, "Servo-Modul initialisiert (GPIO %d, FET-Enable GPIO %d)", GPIO_SERVO, GPIO_SERVO_ENABLE);
     return ESP_OK;
+}
+
+void servo_calibrate(void)
+{
+    ESP_LOGI(TAG, "Servo-Kalibrierung gestartet");
+
+    // Grundposition (geschlossen) anfahren
+    ESP_LOGI(TAG, "Kalibrierung: Grundposition (geschlossen) anfahren");
+    gpio_set_level(GPIO_SERVO_ENABLE, 1);
+    servo_set_position(g_servo_config.servo_close_us);
+    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
+    gpio_set_level(GPIO_SERVO_ENABLE, 0);
+
+    // 30% in Richtung offen anfahren
+    uint32_t range = g_servo_config.servo_open_us - g_servo_config.servo_close_us;
+    uint32_t test_position = g_servo_config.servo_close_us + (range * 3 / 10);
+    ESP_LOGI(TAG, "Kalibrierung: 30%% in Richtung offen anfahren (%lu us)", test_position);
+    gpio_set_level(GPIO_SERVO_ENABLE, 1);
+    servo_set_position(test_position);
+    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
+    gpio_set_level(GPIO_SERVO_ENABLE, 0);
+
+    // Wieder auf Grundposition zurückfahren
+    ESP_LOGI(TAG, "Kalibrierung: Zurück auf Grundposition");
+    gpio_set_level(GPIO_SERVO_ENABLE, 1);
+    servo_set_position(g_servo_config.servo_close_us);
+    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
+    gpio_set_level(GPIO_SERVO_ENABLE, 0);
+
+    ESP_LOGI(TAG, "Servo-Kalibrierung abgeschlossen");
 }
 
 void servo_set_position(uint32_t pulse_us)

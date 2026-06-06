@@ -173,7 +173,7 @@
 #define NVS_LAST_TRIGGER_KEY "last_trigger"
 #define NVS_KEY_WIFI_SSID "wifi_ssid"
 #define NVS_KEY_WIFI_PASS "wifi_pass"
-#define NVS_KEY_CLOSE_TIMEOUT_MS "close_timeout_ms"
+#define NVS_KEY_CLOSE_TIMEOUT_MS "close_tout_ms"
 #define NVS_KEY_SERVO_OPEN_US "servo_open_us"
 #define NVS_KEY_SERVO_CLOSE_US "servo_close_us"
 #define NVS_KEY_FET_ON_TIME_MS "fet_on_time_ms"

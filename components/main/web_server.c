@@ -489,6 +489,7 @@ static esp_err_t servo_config_post_handler(httpd_req_t *req)
         send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"NVS set close_timeout failed\"}");
         return ESP_OK;
     }
+    ESP_LOGI(TAG, "Close Timeout erfolgreich in NVS gesetzt: %lu ms", g_servo_config.close_timeout_ms);
 
     ret = nvs_set_u32(nvs_handle, NVS_KEY_SERVO_OPEN_US, g_servo_config.servo_open_us);
     if (ret != ESP_OK) {

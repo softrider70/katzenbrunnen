@@ -167,6 +167,7 @@ katzenbrunnen/
 - Interne Funktionen bleiben in .c Dateien
 - Globale Variablen werden minimiert und durch Getter/Setter ersetzt
 - Thread-Sicherheit über Semaphores/Mutexes pro Modul
+- **NVS-Schlüssel-Längen-Validierung:** NVS-Schlüssel dürfen maximal 15 Zeichen lang sein (ESP-IDF Limit). Alle NVS_KEY_* Defines müssen ≤15 Zeichen sein.
 
 ## Quick Start
 

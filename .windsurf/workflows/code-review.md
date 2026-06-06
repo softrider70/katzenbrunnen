@@ -66,32 +66,37 @@ Dieser Workflow führt eine umfassende Codeanalyse durch, speziell für ESP32/Em
 - Alle xTaskCreate mit vTaskDelete?
 - Alle Timer gestoppt/gelöscht?
 
+### 10. NVS-Schlüssel-Längen prüfen
+- Alle NVS_KEY_* Defines ≤15 Zeichen (ESP-IDF Limit)?
+- Schlüssel-Namen eindeutig und beschreibend?
+- Namespace korrekt definiert?
+
 ## Sicherheitsanalyse
 
-### 10. Buffer Overflows
+### 11. Buffer Overflows
 - strncpy mit korrekter Länge?
 - Array-Zugriffe mit Bounds-Checking?
 - snprintf statt sprintf?
 
-### 11. Memory Safety
+### 12. Memory Safety
 - Null-Pointer Checks?
 - Double-free vermieden?
 - Use-after-free vermieden?
 
 ## Best-Practices Review
 
-### 12. Code-Konsistenz
+### 13. Code-Konsistenz
 - Einheitlicher Coding-Style?
 - Kommentare in Deutsch (laut global rules)?
 - Funktionsnamen beschreibend?
 
-### 13. Architektur
+### 14. Architektur
 - Separation of Concerns?
 - Module sauber getrennt?
 - Header-Files nur Deklarationen?
 
 ## Bericht erstellen
 
-14. Alle gefundenen Probleme kategorisieren (Kritisch/Mittel/Gering)
-15. Priorisierte Liste mit Lösungen erstellen
-16. README.md mit Analyse-Ergebnissen aktualisieren (falls nötig)
+15. Alle gefundenen Probleme kategorisieren (Kritisch/Mittel/Gering)
+16. Priorisierte Liste mit Lösungen erstellen
+17. README.md mit Analyse-Ergebnissen aktualisieren (falls nötig)

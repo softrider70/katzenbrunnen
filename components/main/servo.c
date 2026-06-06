@@ -34,7 +34,7 @@ esp_err_t servo_init(void)
         return ESP_FAIL;
     }
     
-    // LEDC Timer konfigurieren
+    // LEDC Timer konfigurieren (14-Bit)
     ledc_timer_config_t timer_conf = {
         .duty_resolution = LEDC_TIMER_14_BIT,
         .freq_hz = SERVO_FREQUENCY_HZ,
@@ -82,8 +82,12 @@ esp_err_t servo_init(void)
     // FET initial ausschalten (Servo stromlos)
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 
-    // Servo auf geschlossene Position setzen
+    // FET kurz einschalten für Initialisierungs-Position
+    gpio_set_level(GPIO_SERVO_ENABLE, 1);
+    vTaskDelay(pdMS_TO_TICKS(500));
     servo_set_position(SERVO_CLOSE_ANGLE_US);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    gpio_set_level(GPIO_SERVO_ENABLE, 0);
 
     ESP_LOGI(TAG, "Servo-Modul initialisiert (GPIO %d, FET-Enable GPIO %d)", GPIO_SERVO, GPIO_SERVO_ENABLE);
     return ESP_OK;
@@ -91,11 +95,11 @@ esp_err_t servo_init(void)
 
 void servo_set_position(uint32_t pulse_us)
 {
-    // Pulsweite in 16-bit Duty umrechnen (20ms Periode)
-    uint32_t duty = (pulse_us * 65535) / 20000;
+    // Pulsweite in 14-bit Duty umrechnen (20ms Periode, 16383 Schritte)
+    uint32_t duty = (pulse_us * 16383) / 20000;
     ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, duty);
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
-    
+
     ESP_LOGD(TAG, "Servo Position: %lu us", pulse_us);
 }
 
@@ -178,7 +182,13 @@ void servo_emergency_close(void)
     valve_open = false;
     portEXIT_CRITICAL(&servo_mux);
 
+    // FET einschalten für Emergency-Schließen
+    gpio_set_level(GPIO_SERVO_ENABLE, 1);
+    vTaskDelay(pdMS_TO_TICKS(500));
     servo_set_position(SERVO_CLOSE_ANGLE_US);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    gpio_set_level(GPIO_SERVO_ENABLE, 0);
+
     ESP_LOGE(TAG, "EMERGENCY: Wasserhahn geschlossen");
 }
 

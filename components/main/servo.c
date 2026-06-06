@@ -1,6 +1,7 @@
 #include "servo.h"
 #include "config.h"
 #include "watchdog.h"
+#include "telegram.h"
 #include "esp_log.h"
 #include "esp_err.h"
 #include "driver/ledc.h"
@@ -165,6 +166,11 @@ void servo_open_valve(void)
     ESP_LOGI(TAG, "Wasserhahn öffnen");
     servo_set_position(g_servo_config.servo_open_us);
 
+    // Telegram-Nachricht senden
+    if (telegram_is_configured()) {
+        telegram_send_message("💧 Wasserhahn geöffnet - Katze trinkt");
+    }
+
     // FET nach konfigurierbarer Zeit ausschalten (Strom sparen)
     for (int i = 0; i < g_servo_config.fet_on_time_ms / 100; i++) {
         vTaskDelay(pdMS_TO_TICKS(100));
@@ -223,6 +229,13 @@ void servo_close_valve(void)
         watchdog_feed();
     }
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
+
+    // Telegram-Nachricht senden
+    if (telegram_is_configured()) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "🚰 Wasserhahn geschlossen - Dauer: %llu s", (unsigned long long)(duration_ms / 1000));
+        telegram_send_message(msg);
+    }
 }
 
 bool servo_is_valve_open(void)

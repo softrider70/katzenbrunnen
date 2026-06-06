@@ -16,6 +16,7 @@ Automatischer Katzenbrunnen für Katzen zur Selbstversorgung mit Wasser. Das Sys
 - **Persistente Datenspeicherung** der Aktivierungszykler
 - **Web-UI** mit tabellarischer Anzeige von Bewegungen und Öffnungszeiten
 - **OTA-Updates** für Firmware-Austausch über WLAN
+- **Telegram-Benachrichtigungen** für Status-Updates und Alarme
 
 **FreeRTOS Task-Architektur:**
 - **PIR-Task (Core 0):** Bewegungserkennung und Trigger-Logik
@@ -90,6 +91,10 @@ GPIO5   → 2N7000 MOSFET Gate (Low-Side-Switching für Servo-Stromversorgung)
   - FET-An-Zeit (1-10 Sekunden) - Zeit für Servo-Stellzeit vor Stromabschaltung
   - **Servo-Endpunkte:** 555µs im Uhrzeigersinn, 2400µs gegen den Uhrzeigersinn
 - **Error-Log-Anzeige** mit farbcodierter Schweregrad-Indikator
+- **Telegram-Konfiguration** (neu):
+  - Bot Token und Chat ID über Web-UI konfigurieren
+  - Test-Nachrichten senden
+  - Persistente Speicherung in NVS
 
 ### WiFi-Einrichtung (Captive Portal):
 - **AP-Start bei fehlenden Credentials:** Wenn kein WiFi-Passwort im NVS gespeichert ist, startet automatisch der Access Point
@@ -102,6 +107,19 @@ GPIO5   → 2N7000 MOSFET Gate (Low-Side-Switching für Servo-Stromversorgung)
 ### System-Reset Funktionen:
 - **WiFi-Reset:** Löscht gespeicherte WiFi-Credentials und startet AP-Modus neu
 - **System-Reset:** Neustart des gesamten ESP32-Systems
+
+### Telegram-Benachrichtigungen:
+- **Bot-Einrichtung:** Bot über @BotFather erstellen und Token erhalten
+- **Chat-ID ermitteln:** ID des Empfängers über API oder Bot ermitteln
+- **Konfiguration:** Bot Token und Chat ID über Web-UI im Telegram-Tab eingeben
+- **API-Endpunkte:**
+  - `GET /api/telegram_config` - Prüft ob konfiguriert
+  - `POST /api/telegram_config` - Speichert Bot Token und Chat ID
+  - `POST /api/telegram/test` - Sendet Test-Nachricht
+- **NVS-Speicherung:** Token und Chat ID werden persistent im NVS gespeichert (Namespace: "telegram")
+- **TLS/HTTPS:** Automatische Zertifikatsvalidierung über esp_crt_bundle
+
+**WICHTIG:** Bot Token und Chat ID sind sensible Zugangsdaten und sollten sicher aufbewahrt werden. Sie werden nicht in der README dokumentiert, sondern nur im NVS des ESP32 gespeichert.
 
 
 ## Project Structure

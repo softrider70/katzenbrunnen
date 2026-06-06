@@ -514,11 +514,11 @@ static void control_task(void *pvParameters)
                     ESP_LOGI(TAG, "Inaktivität >= %d ms -> Light Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
                     ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
 
-                    // Watchdog deaktivieren vor Light Sleep
-                    watchdog_stop();
-
                     // Aktivierungszykler vor Sleep speichern
                     save_activation_count_before_sleep();
+
+                    // Watchdog deaktivieren vor Light Sleep
+                    watchdog_stop();
 
                     // Light Sleep mit GPIO Wake-Up konfigurieren (IDF 6.0: pro-GPIO Level + globale Aktivierung)
                     gpio_wakeup_enable(POWER_DEEP_SLEEP_WAKEUP_GPIO,
@@ -535,11 +535,11 @@ static void control_task(void *pvParameters)
                     ESP_LOGI(TAG, "Inaktivität >= %d ms (Nacht) -> Deep Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
                     ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
 
-                    // Watchdog deaktivieren vor Deep Sleep
-                    watchdog_stop();
-
                     // Aktivierungszykler vor Sleep speichern
                     save_activation_count_before_sleep();
+
+                    // Watchdog deaktivieren vor Deep Sleep
+                    watchdog_stop();
 
                     // Deep Sleep Wake-Up per PIR-GPIO konfigurieren
                     configure_deep_sleep_wakeup();
@@ -573,11 +573,11 @@ static void control_task(void *pvParameters)
                 close_water_valve();
             }
 
-            // Watchdog deaktivieren vor Deep Sleep
-            watchdog_stop();
-
             // Aktivierungszykler vor Sleep speichern
             save_activation_count_before_sleep();
+
+            // Watchdog deaktivieren vor Deep Sleep
+            watchdog_stop();
 
             // Deep Sleep aktivieren (nur durch Reset aufweckbar)
             esp_deep_sleep_start();

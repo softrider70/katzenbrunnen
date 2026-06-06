@@ -346,24 +346,6 @@ static void save_activation_count(void)
 }
 
 /**
- * @brief Aktivierungszykler vor Deep Sleep speichern
- */
-static void save_activation_count_before_sleep(void)
-{
-    xSemaphoreTake(state_mutex, portMAX_DELAY);
-    uint32_t count = activation_count;
-    xSemaphoreGive(state_mutex);
-    
-    esp_err_t ret = nvs_set_u32(g_nvs_handle, NVS_ACTIVATION_COUNT_KEY, count);
-    if (ret == ESP_OK) {
-        nvs_commit(g_nvs_handle);
-        ESP_LOGI(TAG, "Aktivierungszykler vor Sleep gespeichert: %lu", count);
-    } else {
-        ESP_LOGE(TAG, "Fehler beim Speichern der Aktivierungszykler vor Sleep");
-    }
-}
-
-/**
  * @brief Wasserhahn öffnen (Ventil-Zustand wird vom servo-Modul gehalten)
  */
 static void open_water_valve(void)
@@ -514,9 +496,6 @@ static void control_task(void *pvParameters)
                     ESP_LOGI(TAG, "Inaktivität >= %d ms -> Light Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
                     ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
 
-                    // Aktivierungszykler vor Sleep speichern
-                    save_activation_count_before_sleep();
-
                     // Watchdog deaktivieren vor Light Sleep
                     watchdog_stop();
 
@@ -534,9 +513,6 @@ static void control_task(void *pvParameters)
                 } else {
                     ESP_LOGI(TAG, "Inaktivität >= %d ms (Nacht) -> Deep Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
                     ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
-
-                    // Aktivierungszykler vor Sleep speichern
-                    save_activation_count_before_sleep();
 
                     // Watchdog deaktivieren vor Deep Sleep
                     watchdog_stop();
@@ -572,9 +548,6 @@ static void control_task(void *pvParameters)
             if (valve_open) {
                 close_water_valve();
             }
-
-            // Aktivierungszykler vor Sleep speichern
-            save_activation_count_before_sleep();
 
             // Watchdog deaktivieren vor Deep Sleep
             watchdog_stop();

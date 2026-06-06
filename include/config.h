@@ -70,15 +70,15 @@
 // ============================================================================
 // Task-Stackgrößen und Prioritäten werden direkt hier definiert
 
-// Task Stack Sizes
-#define TASK_STACK_PIR          4096    // PIR-Task Stack
-#define TASK_STACK_SERVO        4096    // Servo-Task Stack (auch Control-Task)
-#define TASK_STACK_WEB          8192    // Web-Server-Task Stack (httpd)
-#define TASK_STACK_WIFI         4096    // WiFi-Task Stack
-#define TASK_STACK_OTA          8192    // OTA-Task Stack
-#define TASK_STACK_APP          4096    // Hauptanwendungs-Task Stack
-#define TASK_STACK_CONTROL      4096    // Steuerungs-Task Stack
-#define TASK_STACK_HEAP         2048    // Heap-Monitor-Task Stack
+// Task Stack Sizes (großzügig mit 8MB PSRAM)
+#define TASK_STACK_PIR          8192    // PIR-Task Stack
+#define TASK_STACK_SERVO        8192    // Servo-Task Stack (auch Control-Task)
+#define TASK_STACK_WEB          16384   // Web-Server-Task Stack (httpd)
+#define TASK_STACK_WIFI         8192    // WiFi-Task Stack
+#define TASK_STACK_OTA          16384   // OTA-Task Stack
+#define TASK_STACK_APP          8192    // Hauptanwendungs-Task Stack
+#define TASK_STACK_CONTROL      16384   // Steuerungs-Task Stack
+#define TASK_STACK_HEAP         4096    // Heap-Monitor-Task Stack
 
 // Task Priorities (0-24, higher = more important)
 #define TASK_PRIO_PIR           5       // PIR-Task Priorität

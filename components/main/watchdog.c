@@ -54,7 +54,7 @@ esp_err_t watchdog_subscribe(void)
 
 void watchdog_stop(void)
 {
-    // Aktuellen Task vor Sleep vom TWDT abmelden (verhindert Timeout während Sleep)
+    // Aktuellen Task vom TWDT abmelden
     if (esp_task_wdt_status(NULL) == ESP_OK) {
         esp_task_wdt_delete(NULL);
     }
@@ -62,7 +62,7 @@ void watchdog_stop(void)
 
 void watchdog_start(void)
 {
-    // Aktuellen Task nach Sleep wieder am TWDT anmelden
+    // Aktuellen Task wieder am TWDT anmelden
     esp_err_t ret = esp_task_wdt_add(NULL);
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_ARG) {
         ESP_LOGE(TAG, "Watchdog-Wiederanmeldung fehlgeschlagen: %s", esp_err_to_name(ret));

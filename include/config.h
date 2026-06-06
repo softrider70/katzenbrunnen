@@ -6,7 +6,7 @@
 // ============================================================================
 // GPIO Pin Configuration - Katzenbrunnen ESP32-S3
 // ============================================================================
-#define GPIO_PIR_SENSOR  4   // PIR Bewegungssensor (BIS0001) - RTC GPIO für Deep Sleep Wake-Up
+#define GPIO_PIR_SENSOR  4   // PIR Bewegungssensor (BIS0001)
 #define GPIO_LED_DATA    48  // WS2812B RGB LED (fest verdrahtet auf GPIO48)
 #define GPIO_BUTTON      10  // manueller Taster
 #define GPIO_SERVO       11  // Gigaline Standard Servo (Wasserhahn-Steuerung)

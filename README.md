@@ -15,9 +15,7 @@ Automatischer Katzenbrunnen für Katzen zur Selbstversorgung mit Wasser. Das Sys
 - **Statusanzeige** mit RGB LED
 - **Persistente Datenspeicherung** der Aktivierungszykler
 - **Web-UI** mit tabellarischer Anzeige von Bewegungen und Öffnungszeiten
-- **Spannungsüberwachung** für LiPo-Batterie (2S2P, 3.7V, 4Ah)
 - **OTA-Updates** für Firmware-Austausch über WLAN
-- **Stromspar-Modi** für batteriebetriebenen Betrieb
 
 **FreeRTOS Task-Architektur:**
 - **PIR-Task (Core 0):** Bewegungserkennung und Trigger-Logik
@@ -25,7 +23,6 @@ Automatischer Katzenbrunnen für Katzen zur Selbstversorgung mit Wasser. Das Sys
 - **Web-Server-Task (Core 1):** HTTP-Handler und API-Endpunkte
 - **WiFi-Task (Core 1):** WLAN-Verbindungsmanagement
 - **OTA-Task (Core 1):** Firmware-Update-Management
-- **Spannungs-Monitor-Task (Core 0):** Batterieüberwachung
 
 - **Board:** ESP32-S3-WROOM-1 (Dual-Core, 512KB SRAM, 8MB PSRAM, 16MB Flash)
 - **ESP-IDF:** 6.1
@@ -36,12 +33,11 @@ Automatischer Katzenbrunnen für Katzen zur Selbstversorgung mit Wasser. Das Sys
 
 ### ESP32-S3 Pin-Belegung:
 ```
-GPIO4  → PIR Bewegungssensor (Digital) - RTC GPIO für Deep Sleep Wake-Up
+GPIO4  → PIR Bewegungssensor (Digital)
 GPIO48 → WS2812B RGB LED Data (fest verdrahtet vom Hersteller)
 GPIO10  → manueller Taster (mit Pull-up)
 GPIO11  → Gigaline Standard Servo (PWM) - Wasserhahn-Steuerung
 GPIO5   → 2N7000 MOSFET Gate (Low-Side-Switching für Servo-Stromversorgung)
-GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 ```
 
 ### Servo-Stromversorgung (2N7000 Low-Side-Switching):
@@ -62,7 +58,7 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - WS2812B RGB LED
 - Taster
 - Mechanische Verbindung Servo → Wasserhahn-Griff
-- **LiPo-Batterie** 2S2P (3.7V, 4Ah) mit Spannungsteiler für ADC
+- **Netzteil** 5V DC (min. 2A)
 
 ## Funktionsweise
 
@@ -77,10 +73,7 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 4. **Wasser fließt** solange der PIR-Sensor Bewegung feststellt
 5. **Timeout-Schutz:** Nach 8s (einstellbar, 1-30s) ohne HIGH-Signal schließt der Servo automatisch (CLOSE_TIMEOUT_MS)
 6. **Cooldown:** Nach Schließen 30s Cooldown vor erneutem Öffnen (PIR_COOLDOWN_MS)
-7. **Aktivierungszykler** werden in NVS gespeichert (nur vor Deep Sleep, um Watchdog-Trigger zu vermeiden)
-8. **Sleep-Modi:**
-   - Tagsüber: Kein Light Sleep (deaktiviert für sofortige Reaktion)
-   - Nachts: Deep Sleep (WiFi aus, PIR Wake-Up aktiv)
+7. **Aktivierungszykler** werden in NVS gespeichert
 
 ### Manuel Betrieb:
 - **Taster** löst sofortige Wasserhahn-Öffnung aus
@@ -91,7 +84,6 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 ### Web-UI:
 - **Tabelle** mit Bewegungsereignissen (Zeitstempel, Dauer)
 - **Tabelle** mit Öffnungszeiten (Start, Ende, Dauer)
-- **Spannungsanzeige** (Aktuelle Spannung, Prozent, Status)
 - **OTA-Steuerbereich** für Firmware-Updates (ESP-IDF 6.1: aktuell deaktiviert)
 - **WiFi-Konfiguration** für Netzwerk-Setup
 - **Servo-Konfiguration** (neu):
@@ -113,15 +105,6 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - **WiFi-Reset:** Löscht gespeicherte WiFi-Credentials und startet AP-Modus neu
 - **System-Reset:** Neustart des gesamten ESP32-Systems
 
-### Stromspar-Modi:
-- **Deep Sleep (Nacht):** System geht nachts (22:00-06:00 Uhr) in Deep Sleep nach 30 Sekunden Inaktivität
-- **Light Sleep (Tag):** System geht tagsüber in Light Sleep nach 30 Sekunden Inaktivität (WiFi bleibt aktiv)
-- **Wake-Up:** PIR-Sensor (GPIO4) weckt ESP32 aus Sleep bei Bewegungserkennung
-- **Wake-Up Zeit:** ~20-50ms bis zur vollständigen Betriebsbereitschaft
-- **Stromersparnis:** Deep Sleep ~10-20µA, Light Sleep ~10-20mA vs ~100mA im aktiven Modus
-- **Batterie-Abschaltung:** Bei kritischer Batteriespannung (<3.2V/Zelle) wird Wasserhahn geschlossen und Deep Sleep aktiviert
-- **WiFi Sendeleistung:** Reduzierte Sendeleistung (14dBm Standard) für ~30-40% Stromersparnis bei der Übertragung (konfigurierbar über WIFI_TX_POWER)
-- **WICHTIG - Batteriespannungsmessung:** Die Batteriespannung darf NICHT gemessen werden, wenn der Servo aktiv ist, da der Servo-Strom die ADC-Messung verfälscht. Die Spannungsmessung muss nur erfolgen, wenn der Servo inaktiv ist.
 
 ## Project Structure
 
@@ -132,7 +115,6 @@ katzenbrunnen/
 │       ├── main.c              Main application entry point
 │       ├── pir.c               PIR-Sensor Modul (Bewegungserkennung)
 │       ├── servo.c             Servo-Steuerung Modul (Wasserhahn)
-│       ├── battery.c           Batterie-Monitor Modul (Spannungsmessung)
 │       ├── error_log.c         Fehler-Logging Modul
 │       ├── stack_monitor.c     Stack-Überwachungs Modul
 │       ├── heap_monitor.c      Heap-Überwachungs Modul
@@ -145,7 +127,6 @@ katzenbrunnen/
 │   ├── config.h            Hardware-Konfiguration (Pins, Parameter)
 │   ├── pir.h               PIR-Sensor Header
 │   ├── servo.h             Servo-Steuerung Header
-│   ├── battery.h           Batterie-Monitor Header
 │   ├── error_log.h         Fehler-Logging Header
 │   ├── stack_monitor.h     Stack-Überwachung Header
 │   ├── heap_monitor.h      Heap-Überwachung Header
@@ -175,7 +156,6 @@ katzenbrunnen/
 **Modul-Struktur:**
 - **pir.c/h:** PIR-Sensor Initialisierung, ISR-Handler, Bewegungserkennungslogik
 - **servo.c/h:** Servo PWM-Initialisierung, Positionskontrolle, Wasserhahn-Steuerung
-- **battery.c/h:** ADC-Initialisierung, Spannungsmessung, Prozentberechnung
 - **error_log.c/h:** Fehler-Logging mit Ringbuffer, Fehlercode-Generierung
 - **stack_monitor.c/h:** Stack-Überwachung für bekannte Tasks (ESP-IDF 6.1 kompatibel)
 - **heap_monitor.c/h:** Heap-Überwachung mit Warnung/Kritisch-Schwellen
@@ -299,15 +279,14 @@ Use Copilot skills to extend functionality:
 
 ## Unit Tests
 
-Das Projekt enthält Unit Tests für die wichtigsten Module (PIR, Servo, Battery) basierend auf dem ESP-IDF Unity Test Framework.
+Das Projekt enthält Unit Tests für die wichtigsten Module (PIR, Servo) basierend auf dem ESP-IDF Unity Test Framework.
 
 ### Test-Struktur
 ```
 test/
 ├── CMakeLists.txt          # Test-Konfiguration
 ├── test_pir.c              # PIR-Sensor Tests
-├── test_servo.c            # Servo-Steuerung Tests
-└── test_battery.c          # Battery-Monitor Tests
+└── test_servo.c            # Servo-Steuerung Tests
 ```
 
 ### Tests ausführen
@@ -319,7 +298,6 @@ idf.py -p COM3 flash monitor
 # Spezifische Test-Komponente ausführen
 idf.py -p COM3 flash monitor --test-component pir
 idf.py -p COM3 flash monitor --test-component servo
-idf.py -p COM3 flash monitor --test-component battery
 ```
 
 ### Test-Ergebnisse
@@ -367,18 +345,16 @@ Alle Module mit Mutex-Synchronisation haben entsprechende `*_deinit()` Funktione
 - `servo_deinit()` - Servo-Modul
 - `ota_deinit()` - OTA-Modul
 - `error_log_deinit()` - Error-Log
-- `battery_deinit()` - Battery-Modul
 - `deinit_hardware()` - Hardware-State Mutex
 
 Diese Funktionen löschen die Mutexes und verhindern Memory Leaks. Für Embedded-Systeme werden diese Funktionen typischerweise nur bei System-Reset oder Shutdown aufgerufen.
 
 ### Task Lifecycle
 Die folgenden FreeRTOS-Tasks laufen bis zum System-Reset:
-- `control_task` - Hauptsteuerung (PIR, Servo, Sleep)
+- `control_task` - Hauptsteuerung (PIR, Servo)
 - `wifi_task` - WiFi-Management
 - `stack_monitor_task` - Stack-Überwachung
 - `heap_monitor_task` - Heap-Überwachung
-- `battery_task` - Batterieüberwachung
 - `dns_server_task` - DNS-Server
 
 Tasks werden nicht explizit gelöscht (`vTaskDelete`), da sie für den gesamten Betrieb des Systems benötigt werden. Dies ist für Embedded-Systeme akzeptabel und üblich.

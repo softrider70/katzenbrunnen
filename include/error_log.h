@@ -11,10 +11,9 @@
 #define ERR_STACK_OVERFLOW      0x01
 #define ERR_WATCHDOG_TRIGGER    0x02
 #define ERR_SERVO_FAILURE       0x03
-#define ERR_BATTERY_CRITICAL    0x04
-#define ERR_PIR_FAILURE         0x05
-#define ERR_ADC_FAILURE         0x06
-#define ERR_NVS_FAILURE         0x07
+#define ERR_PIR_FAILURE         0x04
+#define ERR_ADC_FAILURE         0x05
+#define ERR_NVS_FAILURE         0x06
 #define ERR_WIFI_FAILURE        0x08
 #define ERR_OTA_FAILURE         0x09
 #define ERR_MEMORY_ALLOC        0x0A

@@ -6,9 +6,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_chip_info.h"
-#include "esp_sleep.h"
 #include "driver/gpio.h"
-#include "driver/rtc_io.h"
 #include "esp_timer.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -313,7 +311,7 @@ static esp_err_t init_nvs(void)
 }
 
 /**
- * @brief Aktivierungszykler in NVS speichern (nur vor Deep Sleep aufrufen)
+ * @brief Aktivierungszykler in NVS speichern
  */
 static void save_activation_count(void)
 {
@@ -343,9 +341,8 @@ static void open_water_valve(void)
     activation_count++;
     uint32_t count = activation_count;
     xSemaphoreGive(state_mutex);
-    
+
     ESP_LOGI(TAG, "Wasserhahn geöffnet (Zyklus %lu)", count);
-    // NVS-Speicherung entfernt - wird nur vor Deep Sleep durchgeführt (vermeidet Watchdog-Trigger)
 }
 
 /**

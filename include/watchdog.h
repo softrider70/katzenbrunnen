@@ -25,12 +25,12 @@ esp_err_t watchdog_start_task(void);
 esp_err_t watchdog_subscribe(void);
 
 /**
- * @brief Aktuellen Task vom Watchdog abmelden (vor Sleep)
+ * @brief Aktuellen Task vom Watchdog abmelden
  */
 void watchdog_stop(void);
 
 /**
- * @brief Aktuellen Task wieder am Watchdog anmelden (nach Sleep)
+ * @brief Aktuellen Task wieder am Watchdog anmelden
  */
 void watchdog_start(void);
 

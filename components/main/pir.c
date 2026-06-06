@@ -21,8 +21,8 @@ static pir_event_t pir_events[PIR_EVENT_MAX_COUNT];
 static uint16_t pir_event_index = 0;
 static uint16_t pir_event_count = 0;
 
-// PIR-Bewegungserkennung im Erkennungsfenster (PIR_DETECTION_WINDOW_MS)
-#define PIR_DETECTION_WINDOW_US (PIR_DETECTION_WINDOW_MS * 1000ULL)
+// PIR-Bewegungserkennungsfenster (für pulsierendes PIR-Signal)
+#define PIR_DETECTION_WINDOW_US 10000000ULL  // 10 Sekunden
 
 // ISR: nur Zeitstempel setzen (ISR-sicher, kein Logging)
 static void IRAM_ATTR pir_isr_handler(void *arg)

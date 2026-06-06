@@ -19,9 +19,9 @@
 #define SERVO_OPEN_ANGLE_US      170    // Servo-Position für geöffneten Wasserhahn (Pulsweite in µs)
 #define SERVO_CLOSE_ANGLE_US     780    // Servo-Position für geschlossenen Wasserhahn (Pulsweite in µs)
 #define MOTION_TIMEOUT_MS       60000   // Timeout ohne Bewegung vor Schließen (ms) - Default 60s
-#define MIN_MOTION_DURATION_MS  2000    // Minimale Bewegungsdauer für Aktivierung (ms)
+#define MIN_MOTION_DURATION_MS  10000   // Minimale Bewegungsdauer für Aktivierung (ms) - für pulsierendes PIR-Signal
 #define PIR_COOLDOWN_MS         30000   // Cooldown nach Schließen vor erneuter Aktivierung (ms)
-#define PIR_DETECTION_WINDOW_MS 1500    // Fenster, in dem eine Bewegung als "aktiv" gilt (ms)
+#define PIR_MOTION_TIMEOUT_MS   10000   // Timeout ohne HIGH-Signal -> Objekt weg (ms)
 
 // ============================================================================
 // Batterie-Konfiguration (LiPo 2S, 7.4V nominal, 2Ah)

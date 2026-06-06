@@ -384,11 +384,11 @@ static void close_water_valve(void)
 /**
  * @brief Steuerungs-Task - Wasserhahn-Logik (alleinige Entscheidungsinstanz)
  *
- * Ablauf:
- *  - Geschlossen: bei durchgehender Bewegung >= MIN_MOTION_DURATION_MS öffnen,
- *    sofern kein Cooldown aktiv ist.
- *  - Offen: bei Bewegung Timeout zurücksetzen; nach MOTION_TIMEOUT_MS ohne
- *    Bewegung schließen und Cooldown starten.
+ * Ablauf für pulsierendes PIR-Signal (2.5s HIGH → 5s LOW → 2.5s HIGH):
+ *  - Geschlossen: bei Bewegungserkennung Timer starten; wenn über MIN_MOTION_DURATION_MS
+ *    genügend HIGH-Signale kommen, öffnen (sofern kein Cooldown aktiv ist).
+ *  - Offen: bei HIGH-Signal Timeout zurücksetzen; nach MOTION_TIMEOUT_MS ohne
+ *    HIGH-Signal schließen und Cooldown starten.
  */
 static void control_task(void *pvParameters)
 {
@@ -399,7 +399,8 @@ static void control_task(void *pvParameters)
 
     // Task-lokale Zustände (nur in diesem Task verwendet -> kein Mutex nötig)
     uint64_t motion_begin = 0;      // Beginn der aktuellen Bewegungsphase
-    uint64_t last_motion_open = 0;  // Letzte Bewegung während Ventil offen
+    uint64_t last_motion_open = 0;  // Letzte HIGH-Signal während Ventil offen
+    uint64_t last_high_signal = 0;  // Letztes HIGH-Signal (für pulsierendes PIR)
     uint64_t cooldown_until = 0;    // Zeitpunkt bis Cooldown aktiv ist
     uint64_t last_any_motion = 0;   // Letzte beliebige Bewegung (für Deep Sleep)
     led_state_t last_led = LED_STATE_IDLE;  // Zuletzt gesetzte LED-Farbe (nur bei Änderung senden)
@@ -418,24 +419,37 @@ static void control_task(void *pvParameters)
             if (now < cooldown_until) {
                 // Cooldown läuft -> nicht öffnen
                 motion_begin = 0;
+                last_high_signal = 0;
             } else if (motion) {
+                // HIGH-Signal erkannt
                 if (motion_begin == 0) {
                     motion_begin = now;  // Bewegungsphase beginnt
-                } else if ((now - motion_begin) >= (MIN_MOTION_DURATION_MS * 1000ULL)) {
-                    ESP_LOGI(TAG, "Bewegung >= %d ms -> Wasserhahn öffnen", MIN_MOTION_DURATION_MS);
-                    open_water_valve();
-                    last_motion_open = now;
-                    motion_begin = 0;
-                }
-            } else {
-                // Bewegung unterbrochen -> Ereignis protokollieren
-                if (motion_begin > 0) {
-                    uint64_t duration_ms = (now - motion_begin) / 1000ULL;
-                    if (duration_ms >= 1000) {  // Nur Ereignisse >= 1 Sekunde protokollieren
-                        pir_add_event(duration_ms);
+                    last_high_signal = now;
+                } else {
+                    last_high_signal = now;  // Timer für "Objekt weg" zurücksetzen
+                    // Prüfen ob genügend Bewegung über Zeit erkannt wurde
+                    if ((now - motion_begin) >= (MIN_MOTION_DURATION_MS * 1000ULL)) {
+                        ESP_LOGI(TAG, "Bewegung >= %d ms -> Wasserhahn öffnen", MIN_MOTION_DURATION_MS);
+                        open_water_valve();
+                        last_motion_open = now;
+                        motion_begin = 0;
+                        last_high_signal = 0;
                     }
                 }
-                motion_begin = 0;  // zurücksetzen
+            } else {
+                // LOW-Signal (kein HIGH)
+                if (motion_begin > 0) {
+                    // Prüfen ob Objekt weg (kein HIGH für PIR_MOTION_TIMEOUT_MS)
+                    if ((now - last_high_signal) >= (PIR_MOTION_TIMEOUT_MS * 1000ULL)) {
+                        // Objekt weg -> Bewegungsphase abbrechen
+                        uint64_t duration_ms = (now - motion_begin) / 1000ULL;
+                        if (duration_ms >= 1000) {  // Nur Ereignisse >= 1 Sekunde protokollieren
+                            pir_add_event(duration_ms);
+                        }
+                        motion_begin = 0;
+                        last_high_signal = 0;
+                    }
+                }
             }
         } else {
             if (motion) {

@@ -468,7 +468,7 @@ static void control_task(void *pvParameters)
                 }
             }
         } else {
-            if (motion) {
+            if (pir_get_gpio_level()) {
                 last_motion_open = now;
                 ESP_LOGI(TAG, "HIGH-Signal während offen -> Timeout zurückgesetzt");
             }

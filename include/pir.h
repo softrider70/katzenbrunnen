@@ -24,6 +24,12 @@ esp_err_t pir_start_task(void);
 bool pir_motion_detected(void);
 
 /**
+ * @brief Aktuelles GPIO-Level des PIR-Sensors abrufen
+ * @return true wenn GPIO HIGH ist, false wenn LOW
+ */
+bool pir_get_gpio_level(void);
+
+/**
  * @brief Letzte Bewegungszeit abrufen
  * @return Zeitstempel der letzten Bewegung in µs (0 = noch keine)
  */

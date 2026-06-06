@@ -143,6 +143,9 @@ void servo_open_valve(void)
     // FET einschalten (Servo-Stromversorgung aktivieren)
     gpio_set_level(GPIO_SERVO_ENABLE, 1);
 
+    // Kurze Verzögerung damit Servo-Stromversorgung stabilisiert
+    vTaskDelay(pdMS_TO_TICKS(50));
+
     ESP_LOGI(TAG, "Wasserhahn öffnen");
     servo_set_position(g_servo_config.servo_open_us);
 

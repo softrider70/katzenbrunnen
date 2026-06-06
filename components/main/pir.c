@@ -81,12 +81,17 @@ bool pir_motion_detected(void)
 {
     uint64_t current_time = esp_timer_get_time();
     uint64_t last_motion = pir_get_last_motion_time();
-    
+
     if (last_motion == 0) {
         return false;
     }
     // Bewegung erkannt, wenn letzte Bewegung innerhalb des Fensters liegt
     return ((current_time - last_motion) < PIR_DETECTION_WINDOW_US);
+}
+
+bool pir_get_gpio_level(void)
+{
+    return gpio_get_level(GPIO_PIR_SENSOR) == 1;
 }
 
 uint64_t pir_get_last_motion_time(void)

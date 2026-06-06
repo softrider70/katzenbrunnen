@@ -109,12 +109,12 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <input type="number" id="close-timeout-s" min="1" max="30" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
 </div>
 <div style="margin:10px 0">
-<label style="font-size:12px;font-weight:bold">Servo-Position offen (µs, 100-1000µs):</label>
-<input type="number" id="servo-open-us" min="100" max="1000" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
+<label style="font-size:12px;font-weight:bold">Servo-Position offen (µs, 250-1000µs):</label>
+<input type="number" id="servo-open-us" min="250" max="1000" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
 </div>
 <div style="margin:10px 0">
-<label style="font-size:12px;font-weight:bold">Servo-Position geschlossen (µs, 100-1000µs):</label>
-<input type="number" id="servo-close-us" min="100" max="1000" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
+<label style="font-size:12px;font-weight:bold">Servo-Position geschlossen (µs, 250-1000µs):</label>
+<input type="number" id="servo-close-us" min="250" max="1000" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
 </div>
 <div style="margin:10px 0">
 <label style="font-size:12px;font-weight:bold">FET-An-Zeit (Sekunden, 1-10s):</label>
@@ -126,9 +126,8 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 </div>
 <p style="font-size:12px;margin:20px 0 10px 0"><b>Schnell-Positionen:</b></p>
 <div class="buttons">
-<button class="btn-secondary" onclick="setServoPosition(200)">Klein (200µs)</button>
-<button class="btn-secondary" onclick="setServoPosition(600)">Mittel (600µs)</button>
-<button class="btn-secondary" onclick="setServoPosition(1000)">Groß (1000µs)</button>
+<button class="btn-secondary" onclick="setServoPositionFromConfig('open')">Offen</button>
+<button class="btn-secondary" onclick="setServoPositionFromConfig('close')">Geschlossen</button>
 </div>
 <div id="msg-servo" class="msg"></div>
 </div>
@@ -389,12 +388,12 @@ if(closeTimeoutS<1||closeTimeoutS>30){
 showMsg('servo','Close-Timeout muss 1-30s sein',true);
 return;
 }
-if(servoOpenUs<100||servoOpenUs>1000){
-showMsg('servo','Servo-Position offen muss 100-1000µs sein',true);
+if(servoOpenUs<250||servoOpenUs>1000){
+showMsg('servo','Servo-Position offen muss 250-1000µs sein',true);
 return;
 }
-if(servoCloseUs<100||servoCloseUs>1000){
-showMsg('servo','Servo-Position geschlossen muss 100-1000µs sein',true);
+if(servoCloseUs<250||servoCloseUs>1000){
+showMsg('servo','Servo-Position geschlossen muss 250-1000µs sein',true);
 return;
 }
 if(fetOnTimeS<1||fetOnTimeS>10){
@@ -416,6 +415,14 @@ const body=JSON.stringify({pulse_us:pulseUs});
 fetch('/api/servo/position',{method:'POST',headers:{'Content-Type':'application/json'},body:body}).then(r=>r.json()).then(d=>{
 showMsg('servo',d.message,d.status!=='OK');
 }).catch(e=>showMsg('servo','Fehler: '+e.message,true));
+}
+function setServoPositionFromConfig(type){
+const pulseUs=parseInt(type==='open'?document.getElementById('servo-open-us').value:document.getElementById('servo-close-us').value);
+if(pulseUs<250||pulseUs>1000){
+showMsg('servo','Servo-Position muss 250-1000µs sein',true);
+return;
+}
+setServoPosition(pulseUs);
 }
 updateDashboard();
 </script>

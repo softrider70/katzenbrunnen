@@ -28,7 +28,7 @@ $buildNumber = if (Test-Path $buildNumberPath) { Get-Content $buildNumberPath -R
 # Build ausführen mit ESP-IDF Umgebung (activate-esp-idf.ps1)
 Write-Host "Building project..." -ForegroundColor Cyan
 $activateScript = Join-Path $ProjectPath "activate-esp-idf.ps1"
-$buildCmd = ". '$activateScript'; `$env:IDF_PY_BUILD_JOBS = '16'; idf.py build"
+$buildCmd = ". '$activateScript'; `$env:IDF_PY_BUILD_JOBS = '6'; idf.py build"
 $buildStartTime = Get-Date
 powershell -ExecutionPolicy Bypass -NoProfile -Command $buildCmd | Out-Null
 $buildExitCode = $LASTEXITCODE

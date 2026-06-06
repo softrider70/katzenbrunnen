@@ -16,9 +16,9 @@
 // ============================================================================
 // Katzenbrunnen Parameter
 // ============================================================================
-#define SERVO_OPEN_ANGLE_US      170    // Servo-Position für geöffneten Wasserhahn (Pulsweite in µs)
-#define SERVO_CLOSE_ANGLE_US     780    // Servo-Position für geschlossenen Wasserhahn (Pulsweite in µs)
-#define MOTION_TIMEOUT_MS       60000   // Timeout ohne Bewegung vor Schließen (ms) - Default 60s
+#define SERVO_OPEN_ANGLE_US      120    // Servo-Position für geöffneten Wasserhahn (Pulsweite in µs)
+#define SERVO_CLOSE_ANGLE_US     750    // Servo-Position für geschlossenen Wasserhahn (Pulsweite in µs)
+#define CLOSE_TIMEOUT_MS         8000   // Timeout ohne HIGH-Signal vor Schließen (ms) - Default 8s
 #define MIN_MOTION_DURATION_MS  10000   // Minimale Bewegungsdauer für Aktivierung (ms) - für pulsierendes PIR-Signal
 #define PIR_COOLDOWN_MS         30000   // Cooldown nach Schließen vor erneuter Aktivierung (ms)
 #define PIR_MOTION_TIMEOUT_MS   10000   // Timeout ohne HIGH-Signal -> Objekt weg (ms)
@@ -196,7 +196,7 @@
 #define NVS_LAST_TRIGGER_KEY "last_trigger"
 #define NVS_KEY_WIFI_SSID "wifi_ssid"
 #define NVS_KEY_WIFI_PASS "wifi_pass"
-#define NVS_KEY_MOTION_TIMEOUT_MS "motion_timeout_ms"
+#define NVS_KEY_CLOSE_TIMEOUT_MS "close_timeout_ms"
 #define NVS_KEY_SERVO_OPEN_US "servo_open_us"
 #define NVS_KEY_SERVO_CLOSE_US "servo_close_us"
 #define NVS_KEY_FET_ON_TIME_MS "fet_on_time_ms"
@@ -205,7 +205,7 @@
 // Servo Runtime Configuration (NVS-stored)
 // ============================================================================
 typedef struct {
-    uint32_t motion_timeout_ms;  // Timer-Dauer ohne Bewegung (ms)
+    uint32_t close_timeout_ms;    // Timeout ohne HIGH-Signal vor Schließen (ms)
     uint32_t servo_open_us;       // Servo-Position offen (µs)
     uint32_t servo_close_us;      // Servo-Position geschlossen (µs)
     uint32_t fet_on_time_ms;      // FET-An-Zeit nach Servo-Bewegung (ms)

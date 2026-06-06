@@ -105,8 +105,8 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <div class="tab-content" id="servo">
 <p style="font-size:12px;margin:0 0 10px 0"><b>Servo-Konfiguration:</b></p>
 <div style="margin:10px 0">
-<label style="font-size:12px;font-weight:bold">Timer-Dauer (Sekunden, 10-300s):</label>
-<input type="number" id="motion-timeout-s" min="10" max="300" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
+<label style="font-size:12px;font-weight:bold">Close-Timeout (Sekunden, 1-30s):</label>
+<input type="number" id="close-timeout-s" min="1" max="30" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
 </div>
 <div style="margin:10px 0">
 <label style="font-size:12px;font-weight:bold">Servo-Position offen (µs, 100-1000µs):</label>
@@ -368,7 +368,7 @@ checkOtaStatus();
 }
 function loadServoConfig(){
 fetch('/api/servo_config').then(r=>r.json()).then(d=>{
-document.getElementById('motion-timeout-s').value=d.motion_timeout_s;
+document.getElementById('close-timeout-s').value=d.close_timeout_s;
 document.getElementById('servo-open-us').value=d.servo_open_us;
 document.getElementById('servo-close-us').value=d.servo_close_us;
 document.getElementById('fet-on-time-s').value=d.fet_on_time_s;
@@ -376,12 +376,12 @@ showMsg('servo','Konfiguration geladen',false);
 }).catch(e=>showMsg('servo','Fehler: '+e.message,true));
 }
 function saveServoConfig(){
-const motionTimeoutS=parseInt(document.getElementById('motion-timeout-s').value);
+const closeTimeoutS=parseInt(document.getElementById('close-timeout-s').value);
 const servoOpenUs=parseInt(document.getElementById('servo-open-us').value);
 const servoCloseUs=parseInt(document.getElementById('servo-close-us').value);
 const fetOnTimeS=parseInt(document.getElementById('fet-on-time-s').value);
-if(motionTimeoutS<10||motionTimeoutS>300){
-showMsg('servo','Timer-Dauer muss 10-300s sein',true);
+if(closeTimeoutS<1||closeTimeoutS>30){
+showMsg('servo','Close-Timeout muss 1-30s sein',true);
 return;
 }
 if(servoOpenUs<100||servoOpenUs>1000){
@@ -397,7 +397,7 @@ showMsg('servo','FET-An-Zeit muss 1-10s sein',true);
 return;
 }
 const body=JSON.stringify({
-motion_timeout_s:motionTimeoutS,
+close_timeout_s:closeTimeoutS,
 servo_open_us:servoOpenUs,
 servo_close_us:servoCloseUs,
 fet_on_time_s:fetOnTimeS

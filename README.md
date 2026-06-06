@@ -75,9 +75,12 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
    - Objekt gilt als weg wenn 10s durchgehend kein HIGH (PIR_MOTION_TIMEOUT_MS)
 3. **Servo** öffnet Wasserhahn bis zum eingestellten Winkel
 4. **Wasser fließt** solange der PIR-Sensor Bewegung feststellt
-5. **Timeout-Schutz:** Nach 60s ohne Bewegung schließt der Servo automatisch (MOTION_TIMEOUT_MS)
+5. **Timeout-Schutz:** Nach 8s (einstellbar, 1-30s) ohne HIGH-Signal schließt der Servo automatisch (CLOSE_TIMEOUT_MS)
 6. **Cooldown:** Nach Schließen 30s Cooldown vor erneutem Öffnen (PIR_COOLDOWN_MS)
 7. **Aktivierungszykler** werden in NVS gespeichert (nur vor Deep Sleep, um Watchdog-Trigger zu vermeiden)
+8. **Sleep-Modi:**
+   - Tagsüber: Kein Light Sleep (deaktiviert für sofortige Reaktion)
+   - Nachts: Deep Sleep (WiFi aus, PIR Wake-Up aktiv)
 
 ### Manuel Betrieb:
 - **Taster** löst sofortige Wasserhahn-Öffnung aus
@@ -92,9 +95,9 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - **OTA-Steuerbereich** für Firmware-Updates (ESP-IDF 6.1: aktuell deaktiviert)
 - **WiFi-Konfiguration** für Netzwerk-Setup
 - **Servo-Konfiguration** (neu):
-  - Timer-Dauer (10-300 Sekunden) - Zeit ohne Bewegung vor Schließen
-  - Servo-Position offen (100-1000µs) - Pulsweite für geöffneten Wasserhahn
-  - Servo-Position geschlossen (100-1000µs) - Pulsweite für geschlossenen Wasserhahn
+  - Close-Timeout (1-30 Sekunden) - Zeit ohne HIGH-Signal vor Schließen (Default: 8s)
+  - Servo-Position offen (100-1000µs) - Pulsweite für geöffneten Wasserhahn (Default: 120µs)
+  - Servo-Position geschlossen (100-1000µs) - Pulsweite für geschlossenen Wasserhahn (Default: 750µs)
   - FET-An-Zeit (1-10 Sekunden) - Zeit für Servo-Stellzeit vor Stromabschaltung
 - **Error-Log-Anzeige** mit farbcodierter Schweregrad-Indikator
 

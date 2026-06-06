@@ -393,12 +393,12 @@ static esp_err_t servo_config_get_handler(httpd_req_t *req)
     snprintf(json_response, sizeof(json_response),
         "{"
         "\"status\":\"OK\","
-        "\"motion_timeout_s\":%lu,"
+        "\"close_timeout_s\":%lu,"
         "\"servo_open_us\":%lu,"
         "\"servo_close_us\":%lu,"
         "\"fet_on_time_s\":%lu"
         "}",
-        g_servo_config.motion_timeout_ms / 1000,
+        g_servo_config.close_timeout_ms / 1000,
         g_servo_config.servo_open_us,
         g_servo_config.servo_close_us,
         g_servo_config.fet_on_time_ms / 1000
@@ -413,7 +413,7 @@ static esp_err_t servo_config_get_handler(httpd_req_t *req)
 static esp_err_t servo_config_post_handler(httpd_req_t *req)
 {
     char body[256] = {0};
-    uint32_t motion_timeout_s, servo_open_us, servo_close_us, fet_on_time_s;
+    uint32_t close_timeout_s, servo_open_us, servo_close_us, fet_on_time_s;
 
     int total_len = req->content_len;
     if (total_len <= 0 || total_len >= (int)sizeof(body)) {
@@ -428,9 +428,9 @@ static esp_err_t servo_config_post_handler(httpd_req_t *req)
     }
 
     // JSON-Felder parsen
-    if (!parse_json_field(body, "motion_timeout_s", (char*)&motion_timeout_s, sizeof(motion_timeout_s)) ||
-        motion_timeout_s < 10 || motion_timeout_s > 300) {
-        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger motion_timeout_s (10-300s)\"}");
+    if (!parse_json_field(body, "close_timeout_s", (char*)&close_timeout_s, sizeof(close_timeout_s)) ||
+        close_timeout_s < 1 || close_timeout_s > 30) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger close_timeout_s (1-30s)\"}");
         return ESP_OK;
     }
 
@@ -453,7 +453,7 @@ static esp_err_t servo_config_post_handler(httpd_req_t *req)
     }
 
     // Werte in globale Konfiguration übernehmen
-    g_servo_config.motion_timeout_ms = motion_timeout_s * 1000;
+    g_servo_config.close_timeout_ms = close_timeout_s * 1000;
     g_servo_config.servo_open_us = servo_open_us;
     g_servo_config.servo_close_us = servo_close_us;
     g_servo_config.fet_on_time_ms = fet_on_time_s * 1000;

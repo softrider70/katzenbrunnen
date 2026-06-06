@@ -35,7 +35,7 @@ nvs_handle_t g_nvs_handle;
 
 // Servo Runtime-Konfiguration
 servo_config_t g_servo_config = {
-    .motion_timeout_ms = MOTION_TIMEOUT_MS,
+    .close_timeout_ms = CLOSE_TIMEOUT_MS,
     .servo_open_us = SERVO_OPEN_ANGLE_US,
     .servo_close_us = SERVO_CLOSE_ANGLE_US,
     .fet_on_time_ms = 5000
@@ -73,17 +73,17 @@ static void load_servo_config_from_nvs(void)
     esp_err_t ret;
     uint32_t value;
 
-    // motion_timeout_ms (10-300s = 10000-300000ms)
-    ret = nvs_get_u32(g_nvs_handle, NVS_KEY_MOTION_TIMEOUT_MS, &value);
+    // close_timeout_ms (1-30s = 1000-30000ms)
+    ret = nvs_get_u32(g_nvs_handle, NVS_KEY_CLOSE_TIMEOUT_MS, &value);
     if (ret == ESP_OK) {
-        if (value >= 10000 && value <= 300000) {
-            g_servo_config.motion_timeout_ms = value;
-            ESP_LOGI(TAG, "Motion Timeout aus NVS: %lu ms", value);
+        if (value >= 1000 && value <= 30000) {
+            g_servo_config.close_timeout_ms = value;
+            ESP_LOGI(TAG, "Close Timeout aus NVS: %lu ms", value);
         } else {
-            ESP_LOGW(TAG, "Motion Timeout aus NVS ungültig (%lu ms), verwende Default: %lu ms", value, g_servo_config.motion_timeout_ms);
+            ESP_LOGW(TAG, "Close Timeout aus NVS ungültig (%lu ms), verwende Default: %lu ms", value, g_servo_config.close_timeout_ms);
         }
     } else {
-        ESP_LOGI(TAG, "Motion Timeout nicht in NVS, verwende Default: %lu ms", g_servo_config.motion_timeout_ms);
+        ESP_LOGI(TAG, "Close Timeout nicht in NVS, verwende Default: %lu ms", g_servo_config.close_timeout_ms);
     }
 
     // servo_open_us (100-1000µs)
@@ -133,9 +133,9 @@ esp_err_t save_servo_config_to_nvs(void)
 {
     esp_err_t ret;
 
-    ret = nvs_set_u32(g_nvs_handle, NVS_KEY_MOTION_TIMEOUT_MS, g_servo_config.motion_timeout_ms);
+    ret = nvs_set_u32(g_nvs_handle, NVS_KEY_CLOSE_TIMEOUT_MS, g_servo_config.close_timeout_ms);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Motion Timeout speichern fehlgeschlagen: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "Close Timeout speichern fehlgeschlagen: %s", esp_err_to_name(ret));
         return ret;
     }
 
@@ -473,8 +473,8 @@ static void control_task(void *pvParameters)
                 ESP_LOGI(TAG, "HIGH-Signal während offen -> Timeout zurückgesetzt");
             }
             uint64_t time_since_motion = (now - last_motion_open) / 1000ULL;
-            if (time_since_motion >= g_servo_config.motion_timeout_ms) {
-                ESP_LOGI(TAG, "Timeout ohne Bewegung (%llu ms) -> Wasserhahn schließen", (unsigned long long)time_since_motion);
+            if (time_since_motion >= g_servo_config.close_timeout_ms) {
+                ESP_LOGI(TAG, "Timeout ohne HIGH-Signal (%llu ms) -> Wasserhahn schließen", (unsigned long long)time_since_motion);
                 close_water_valve();
                 cooldown_until = now + (PIR_COOLDOWN_MS * 1000ULL);
             }
@@ -485,15 +485,12 @@ static void control_task(void *pvParameters)
         if (!valve_open && now >= cooldown_until) {
             uint64_t inactivity_ms = (now - last_any_motion) / 1000ULL;
             if (inactivity_ms >= POWER_DEEP_SLEEP_TIMEOUT_MS) {
-                // Prüfen ob nachts (Deep Sleep) oder tagsüber (Light Sleep)
+                // Prüfen ob nachts (Deep Sleep aktivieren)
                 time_t now_sec = time(NULL);
 
-                // Wenn Zeit nicht synchronisiert (Epoch < 1000000), immer Light Sleep verwenden
-                // damit Katzen Wasser bekommen auch ohne korrekte Zeit
-                bool use_light_sleep = false;
+                // Wenn Zeit nicht synchronisiert, kein Deep Sleep
                 if (now_sec < 1000000) {
-                    ESP_LOGW(TAG, "Zeit nicht synchronisiert -> Light Sleep (Katzen müssen Wasser bekommen)");
-                    use_light_sleep = true;
+                    ESP_LOGW(TAG, "Zeit nicht synchronisiert -> kein Deep Sleep");
                 } else {
                     struct tm *tm_info = localtime(&now_sec);
                     int current_hour = tm_info->tm_hour;
@@ -507,43 +504,22 @@ static void control_task(void *pvParameters)
                         is_night = (current_hour >= WIFI_SLEEP_START_HOUR && current_hour < WIFI_SLEEP_END_HOUR);
                     }
 
-                    use_light_sleep = !is_night;
-                }
+                    if (is_night) {
+                        ESP_LOGI(TAG, "=== DEEP SLEEP AKTIVIEREN ===");
+                        ESP_LOGI(TAG, "Inaktivität >= %d ms (Nacht) -> Deep Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
+                        ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
 
-                if (use_light_sleep) {
-                    ESP_LOGI(TAG, "=== LIGHT SLEEP AKTIVIEREN ===");
-                    ESP_LOGI(TAG, "Inaktivität >= %d ms -> Light Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
-                    ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
+                        // Watchdog deaktivieren vor Deep Sleep
+                        watchdog_stop();
 
-                    // Watchdog deaktivieren vor Light Sleep
-                    watchdog_stop();
+                        // Deep Sleep Wake-Up per PIR-GPIO konfigurieren
+                        configure_deep_sleep_wakeup();
 
-                    // Light Sleep mit GPIO Wake-Up konfigurieren (IDF 6.0: pro-GPIO Level + globale Aktivierung)
-                    gpio_wakeup_enable(POWER_DEEP_SLEEP_WAKEUP_GPIO,
-                        POWER_DEEP_SLEEP_WAKEUP_LEVEL ? GPIO_INTR_HIGH_LEVEL : GPIO_INTR_LOW_LEVEL);
-                    esp_sleep_enable_gpio_wakeup();
-
-                    // Light Sleep aktivieren
-                    esp_light_sleep_start();
-
-                    ESP_LOGI(TAG, "=== WAKE-UP AUS LIGHT SLEEP ===");
-
-                    // Watchdog nach Light Sleep neu starten
-                    watchdog_start();
-                    watchdog_subscribe();
-                } else {
-                    ESP_LOGI(TAG, "=== DEEP SLEEP AKTIVIEREN ===");
-                    ESP_LOGI(TAG, "Inaktivität >= %d ms (Nacht) -> Deep Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
-                    ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
-
-                    // Watchdog deaktivieren vor Deep Sleep
-                    watchdog_stop();
-
-                    // Deep Sleep Wake-Up per PIR-GPIO konfigurieren
-                    configure_deep_sleep_wakeup();
-
-                    // Deep Sleep aktivieren
-                    esp_deep_sleep_start();
+                        // Deep Sleep aktivieren
+                        esp_deep_sleep_start();
+                    } else {
+                        ESP_LOGI(TAG, "Tagsüber -> kein Sleep (Light Sleep deaktiviert)");
+                    }
                 }
             }
         }

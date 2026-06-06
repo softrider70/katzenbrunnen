@@ -24,6 +24,7 @@
 #include "web_server.h"
 #include "ota.h"
 #include "led.h"
+#include "telegram.h"
 
 static const char *TAG = "katzenbrunnen";
 
@@ -485,6 +486,11 @@ void app_main(void)
     if (init_hardware() != ESP_OK) {
         ESP_LOGE(TAG, "Hardware-Initialisierung fehlgeschlagen");
         return;
+    }
+
+    // Telegram initialisieren
+    if (telegram_init() != ESP_OK) {
+        ESP_LOGW(TAG, "Telegram-Initialisierung fehlgeschlagen (optional)");
     }
     
     // System-Info ausgeben

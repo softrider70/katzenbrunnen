@@ -1,0 +1,53 @@
+#ifndef TELEGRAM_H
+#define TELEGRAM_H
+
+#include <stdint.h>
+#include <stdbool.h>
+#include "esp_err.h"
+
+/**
+ * @brief Telegram-Modul Initialisierung
+ * @return ESP_OK bei Erfolg, sonst Fehlercode
+ */
+esp_err_t telegram_init(void);
+
+/**
+ * @brief Telegram-Nachricht senden
+ * @param message Nachrichtentext (UTF-8)
+ * @return ESP_OK bei Erfolg, sonst Fehlercode
+ */
+esp_err_t telegram_send_message(const char *message);
+
+/**
+ * @brief Telegram-Nachricht mit Markdown-Formatierung senden
+ * @param message Nachrichtentext mit Markdown (UTF-8)
+ * @return ESP_OK bei Erfolg, sonst Fehlercode
+ */
+esp_err_t telegram_send_message_markdown(const char *message);
+
+/**
+ * @brief Bot Token in NVS speichern
+ * @param token Bot Token (max 256 Zeichen)
+ * @return ESP_OK bei Erfolg, sonst Fehlercode
+ */
+esp_err_t telegram_save_token(const char *token);
+
+/**
+ * @brief Chat ID in NVS speichern
+ * @param chat_id Chat ID (max 64 Zeichen)
+ * @return ESP_OK bei Erfolg, sonst Fehlercode
+ */
+esp_err_t telegram_save_chat_id(const char *chat_id);
+
+/**
+ * @brief Prüfen ob Telegram konfiguriert ist
+ * @return true wenn Token und Chat ID gesetzt, sonst false
+ */
+bool telegram_is_configured(void);
+
+/**
+ * @brief Telegram-Modul deinitialisieren
+ */
+void telegram_deinit(void);
+
+#endif // TELEGRAM_H

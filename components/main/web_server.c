@@ -7,6 +7,7 @@
 #include "ota.h"
 #include "stack_monitor.h"
 #include "heap_monitor.h"
+#include "telegram.h"
 #include "esp_log.h"
 #include "nvs.h"
 #include "esp_err.h"
@@ -863,6 +864,103 @@ static httpd_uri_t system_reset_uri = {
     .user_ctx = NULL
 };
 
+// Telegram Handler
+static esp_err_t telegram_config_get_handler(httpd_req_t *req)
+{
+    char response[512];
+    bool configured = telegram_is_configured();
+    
+    snprintf(response, sizeof(response),
+        "{\"configured\":%s}",
+        configured ? "true" : "false");
+    
+    send_json_response(req, response);
+    return ESP_OK;
+}
+
+static esp_err_t telegram_config_post_handler(httpd_req_t *req)
+{
+    char body[512] = {0};
+    char bot_token[256] = {0};
+    char chat_id[64] = {0};
+
+    int total_len = req->content_len;
+    if (total_len <= 0 || total_len >= (int)sizeof(body)) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Invalid body\"}");
+        return ESP_OK;
+    }
+
+    int received = httpd_req_recv(req, body, total_len);
+    if (received <= 0) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to read body\"}");
+        return ESP_OK;
+    }
+
+    // JSON-Felder parsen
+    if (!parse_json_field(body, "bot_token", bot_token, sizeof(bot_token)) || strlen(bot_token) == 0) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Missing or invalid bot_token\"}");
+        return ESP_OK;
+    }
+
+    if (!parse_json_field(body, "chat_id", chat_id, sizeof(chat_id)) || strlen(chat_id) == 0) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Missing or invalid chat_id\"}");
+        return ESP_OK;
+    }
+
+    // In NVS speichern
+    esp_err_t ret = telegram_save_token(bot_token);
+    if (ret != ESP_OK) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to save bot token\"}");
+        return ESP_OK;
+    }
+
+    ret = telegram_save_chat_id(chat_id);
+    if (ret != ESP_OK) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to save chat ID\"}");
+        return ESP_OK;
+    }
+
+    send_json_response(req, "{\"status\":\"OK\",\"message\":\"Telegram configuration saved\"}");
+    return ESP_OK;
+}
+
+static esp_err_t telegram_test_handler(httpd_req_t *req)
+{
+    if (!telegram_is_configured()) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Telegram not configured\"}");
+        return ESP_OK;
+    }
+
+    esp_err_t ret = telegram_send_message("Test-Nachricht vom Katzenbrunnen");
+    if (ret == ESP_OK) {
+        send_json_response(req, "{\"status\":\"OK\",\"message\":\"Test message sent\"}");
+    } else {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to send test message\"}");
+    }
+    return ESP_OK;
+}
+
+static httpd_uri_t telegram_config_get_uri = {
+    .uri = "/api/telegram_config",
+    .method = HTTP_GET,
+    .handler = telegram_config_get_handler,
+    .user_ctx = NULL
+};
+
+static httpd_uri_t telegram_config_post_uri = {
+    .uri = "/api/telegram_config",
+    .method = HTTP_POST,
+    .handler = telegram_config_post_handler,
+    .user_ctx = NULL
+};
+
+static httpd_uri_t telegram_test_uri = {
+    .uri = "/api/telegram/test",
+    .method = HTTP_POST,
+    .handler = telegram_test_handler,
+    .user_ctx = NULL
+};
+
 static httpd_uri_t stacks_uri = {
     .uri = "/api/stacks",
     .method = HTTP_GET,
@@ -943,6 +1041,9 @@ esp_err_t web_server_init(void)
     httpd_register_uri_handler(server, &wifi_reconnect_uri);
     httpd_register_uri_handler(server, &wifi_reset_uri);
     httpd_register_uri_handler(server, &system_reset_uri);
+    httpd_register_uri_handler(server, &telegram_config_get_uri);
+    httpd_register_uri_handler(server, &telegram_config_post_uri);
+    httpd_register_uri_handler(server, &telegram_test_uri);
     httpd_register_uri_handler(server, &stacks_uri);
     httpd_register_uri_handler(server, &pir_events_uri);
     httpd_register_uri_handler(server, &pir_events_clear_uri);

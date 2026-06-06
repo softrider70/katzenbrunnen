@@ -99,10 +99,9 @@ void servo_calibrate(void)
     servo_set_position(g_servo_config.servo_close_us);
     vTaskDelay(pdMS_TO_TICKS(1000));  // 1 Sekunde halten
 
-    // 100µs in Richtung offen anfahren
-    uint32_t test_position = g_servo_config.servo_close_us - 100;
-    ESP_LOGI(TAG, "Kalibrierung: 100µs in Richtung offen anfahren (%lu us)", test_position);
-    servo_set_position(test_position);
+    // Position geöffnet anfahren
+    ESP_LOGI(TAG, "Kalibrierung: Position geöffnet anfahren (%lu us)", g_servo_config.servo_open_us);
+    servo_set_position(g_servo_config.servo_open_us);
     vTaskDelay(pdMS_TO_TICKS(1000));  // 1 Sekunde halten
 
     // Wieder auf Grundposition zurückfahren

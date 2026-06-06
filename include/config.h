@@ -123,6 +123,7 @@
 // ============================================================================
 // WiFi Configuration
 // ============================================================================
+#define WIFI_ENABLE false  // WiFi aktivieren (true) oder deaktivieren (false)
 #define WIFI_SSID_MAX_LEN       32
 #define WIFI_PASSWORD_MAX_LEN   64
 #define WIFI_RETRY_INTERVAL_MS  5000    // WiFi Verbindungsretry Intervall

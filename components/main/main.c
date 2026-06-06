@@ -233,10 +233,11 @@ static esp_err_t init_hardware(void)
     
     ret = heap_monitor_init();
     if (ret != ESP_OK) return ret;
-    
+
     ret = watchdog_init();
     if (ret != ESP_OK) return ret;
-    
+
+#if WIFI_ENABLE
     ret = wifi_init();
     if (ret != ESP_OK) return ret;
 
@@ -245,10 +246,13 @@ static esp_err_t init_hardware(void)
 
     ret = web_server_init();
     if (ret != ESP_OK) return ret;
-    
+
     ret = ota_init();
     if (ret != ESP_OK) return ret;
-    
+#else
+    ESP_LOGI(TAG, "WiFi/Web/OTA deaktiviert (WIFI_ENABLE=false)");
+#endif
+
     ESP_LOGI(TAG, "Hardware initialisiert");
     return ESP_OK;
 }
@@ -657,11 +661,15 @@ void app_main(void)
     if (watchdog_start_task() != ESP_OK) {
         ESP_LOGE(TAG, "Watchdog-Task Start fehlgeschlagen");
     }
-    
+
+#if WIFI_ENABLE
     if (wifi_start_task() != ESP_OK) {
         ESP_LOGE(TAG, "WiFi-Task Start fehlgeschlagen");
     }
-    
+#else
+    ESP_LOGI(TAG, "WiFi deaktiviert (WIFI_ENABLE=false)");
+#endif
+
     // Steuerungs-Task erstellen (Core 0)
     BaseType_t ret = xTaskCreatePinnedToCore(
         control_task,

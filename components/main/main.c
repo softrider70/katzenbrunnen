@@ -380,7 +380,7 @@ static void control_task(void *pvParameters)
 
     while (1) {
         uint64_t now = esp_timer_get_time();
-        bool motion = pir_motion_detected();
+        bool motion = pir_get_gpio_level();
         bool valve_open = servo_is_valve_open();
 
         if (!valve_open) {

@@ -8,7 +8,7 @@
 #include "esp_event.h"
 #include "esp_netif.h"
 #include "lwip/ip4_addr.h"  // IP4_ADDR Makro für AP-IP-Konfiguration
-// mDNS in ESP-IDF 6.1 nicht verfügbar - nur Hostname setzen
+// mDNS in ESP-IDF 6.1 erfordert externe Komponente - für jetzt deaktiviert
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
@@ -282,8 +282,9 @@ esp_err_t wifi_init(void)
     
     ESP_LOGI(TAG, "WiFi-Modul initialisiert (Modus: APSTA)");
 
-    // mDNS in ESP-IDF 6.1 nicht verfügbar - nur Hostname gesetzt
-    ESP_LOGI(TAG, "Hostname gesetzt: %s (mDNS nicht verfügbar in ESP-IDF 6.1)", WIFI_HOSTNAME);
+    // mDNS in ESP-IDF 6.1 erfordert externe Komponente - für jetzt deaktiviert
+    // Hostname ist bereits gesetzt für DHCP
+    ESP_LOGI(TAG, "Hostname gesetzt: %s (mDNS deaktiviert - externe Komponente erforderlich)", WIFI_HOSTNAME);
 
     return ESP_OK;
 }

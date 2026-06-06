@@ -455,14 +455,14 @@ static esp_err_t servo_config_post_handler(httpd_req_t *req)
     }
 
     if (!parse_json_number(body, "servo_open_us", &servo_open_us) ||
-        servo_open_us < 250 || servo_open_us > 1000) {
-        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger servo_open_us (250-1000us)\"}");
+        servo_open_us < 50 || servo_open_us > 20000) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger servo_open_us (50-20000us)\"}");
         return ESP_OK;
     }
 
     if (!parse_json_number(body, "servo_close_us", &servo_close_us) ||
-        servo_close_us < 250 || servo_close_us > 1000) {
-        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger servo_close_us (250-1000us)\"}");
+        servo_close_us < 50 || servo_close_us > 20000) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger servo_close_us (50-20000us)\"}");
         return ESP_OK;
     }
 
@@ -554,8 +554,8 @@ static esp_err_t servo_position_post_handler(httpd_req_t *req)
 
     // JSON-Feld parsen
     if (!parse_json_number(body, "pulse_us", &pulse_us) ||
-        pulse_us < 250 || pulse_us > 1000) {
-        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger pulse_us (250-1000us)\"}");
+        pulse_us < 50 || pulse_us > 20000) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger pulse_us (50-20000us)\"}");
         return ESP_OK;
     }
 

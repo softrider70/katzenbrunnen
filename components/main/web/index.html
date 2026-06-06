@@ -5,7 +5,7 @@
 body{font-family:Arial,sans-serif;background:linear-gradient(180deg,#4ade80 0%,#22c55e 100%);margin:0;padding:10px}
 .container{max-width:460px;margin:0 auto;background:white;padding:12px;border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,0.18)}
 h1{color:#1f2937;margin:0;font-size:19px}
-.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:12px 0;border-bottom:2px solid #e5e7eb}
+.tabs{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin:12px 0;border-bottom:2px solid #e5e7eb}
 .tab-btn{min-width:0;padding:9px 6px;border:none;background:#eef2f7;cursor:pointer;font-weight:bold;border-radius:8px 8px 0 0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tab-btn.active{background:#22c55e;color:white}
 .tab-content{display:none;padding:10px 0 0 0}
@@ -37,7 +37,8 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <button class="tab-btn" onclick="showTab('logs')">Log-FIFO</button>
 <button class="tab-btn" onclick="showTab('codes')">Fehlercodes</button>
 <button class="tab-btn" onclick="showTab('servo')">Servo</button>
-<button class="tab-btn" onclick="showTab('wifi')">WiFi Setup</button>
+<button class="tab-btn" onclick="showTab('wifi')">WiFi</button>
+<button class="tab-btn" onclick="showTab('telegram')">Telegram</button>
 <button class="tab-btn" onclick="showTab('ota')">OTA</button>
 </div>
 
@@ -152,6 +153,28 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <div id="msg-wifi" class="msg"></div>
 </div>
 
+<!-- TELEGRAM TAB -->
+<div class="tab-content" id="telegram">
+<p style="font-size:12px;margin:0 0 10px 0"><b>Telegram Bot Konfiguration:</b></p>
+<div style="margin:10px 0">
+<label style="font-size:12px;font-weight:bold">Bot Token:</label>
+<input type="text" id="telegram-bot-token" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px" placeholder="Bot Token von BotFather">
+</div>
+<div style="margin:10px 0">
+<label style="font-size:12px;font-weight:bold">Chat ID:</label>
+<input type="text" id="telegram-chat-id" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px" placeholder="Chat ID (z.B. 123456789)">
+</div>
+<div class="buttons">
+<button class="btn-primary" onclick="saveTelegramConfig()">Speichern</button>
+<button class="btn-secondary" onclick="loadTelegramConfig()">Aktualisieren</button>
+</div>
+<p style="font-size:12px;margin:20px 0 10px 0"><b>Test:</b></p>
+<div class="buttons">
+<button class="btn-secondary" onclick="testTelegram()">Test-Nachricht senden</button>
+</div>
+<div id="msg-telegram" class="msg"></div>
+</div>
+
 <!-- OTA TAB -->
 <div class="tab-content" id="ota">
 <p style="font-size:12px;margin:0 0 10px 0"><b>OTA Firmware Update:</b></p>
@@ -196,6 +219,7 @@ if(tabId==='ota')checkOtaStatus();
 if(tabId==='codes')loadCodes();
 if(tabId==='wifi')loadWifiConfig();
 if(tabId==='servo')loadServoConfig();
+if(tabId==='telegram')loadTelegramConfig();
 }
 function showMsg(tabId,text,isError){
 const msgEl=document.getElementById('msg-'+tabId);
@@ -424,6 +448,38 @@ showMsg('servo','Servo-Position muss 50-20000µs sein',true);
 return;
 }
 setServoPosition(pulseUs);
+}
+function loadTelegramConfig(){
+fetch('/api/telegram_config').then(r=>r.json()).then(d=>{
+document.getElementById('telegram-bot-token').value=d.configured?'*** (gespeichert)':'';
+document.getElementById('telegram-chat-id').value=d.configured?'*** (gespeichert)':'';
+showMsg('telegram',d.configured?'Konfiguration geladen':'Nicht konfiguriert',false);
+}).catch(e=>showMsg('telegram','Fehler: '+e.message,true));
+}
+function saveTelegramConfig(){
+const botToken=document.getElementById('telegram-bot-token').value.trim();
+const chatId=document.getElementById('telegram-chat-id').value.trim();
+if(!botToken){
+showMsg('telegram','Bot Token darf nicht leer sein',true);
+return;
+}
+if(!chatId){
+showMsg('telegram','Chat ID darf nicht leer sein',true);
+return;
+}
+const body=JSON.stringify({bot_token:botToken,chat_id:chatId});
+fetch('/api/telegram_config',{method:'POST',headers:{'Content-Type':'application/json'},body:body}).then(r=>r.json()).then(d=>{
+showMsg('telegram',d.message,d.status!=='OK');
+if(d.status==='OK'){
+document.getElementById('telegram-bot-token').value='*** (gespeichert)';
+document.getElementById('telegram-chat-id').value='*** (gespeichert)';
+}
+}).catch(e=>showMsg('telegram','Fehler: '+e.message,true));
+}
+function testTelegram(){
+fetch('/api/telegram/test',{method:'POST'}).then(r=>r.json()).then(d=>{
+showMsg('telegram',d.message,d.status!=='OK');
+}).catch(e=>showMsg('telegram','Fehler: '+e.message,true));
 }
 updateDashboard();
 </script>

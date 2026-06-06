@@ -511,6 +511,7 @@ static void control_task(void *pvParameters)
                 }
 
                 if (use_light_sleep) {
+                    ESP_LOGI(TAG, "=== LIGHT SLEEP AKTIVIEREN ===");
                     ESP_LOGI(TAG, "Inaktivität >= %d ms -> Light Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
                     ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
 
@@ -525,10 +526,13 @@ static void control_task(void *pvParameters)
                     // Light Sleep aktivieren
                     esp_light_sleep_start();
 
+                    ESP_LOGI(TAG, "=== WAKE-UP AUS LIGHT SLEEP ===");
+
                     // Watchdog nach Light Sleep neu starten
                     watchdog_start();
                     watchdog_subscribe();
                 } else {
+                    ESP_LOGI(TAG, "=== DEEP SLEEP AKTIVIEREN ===");
                     ESP_LOGI(TAG, "Inaktivität >= %d ms (Nacht) -> Deep Sleep aktivieren", POWER_DEEP_SLEEP_TIMEOUT_MS);
                     ESP_LOGI(TAG, "PIR-Sensor (GPIO%d) wird Wake-Up auslösen", POWER_DEEP_SLEEP_WAKEUP_GPIO);
 

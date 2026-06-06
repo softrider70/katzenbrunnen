@@ -551,6 +551,10 @@ void app_main(void)
         ESP_LOGE(TAG, "WiFi-Task Start fehlgeschlagen");
     }
 
+    if (ota_start_task() != ESP_OK) {
+        ESP_LOGE(TAG, "OTA-Health-Check Task Start fehlgeschlagen");
+    }
+
     // Steuerungs-Task erstellen (Core 0)
     BaseType_t ret = xTaskCreatePinnedToCore(
         control_task,

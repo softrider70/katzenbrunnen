@@ -123,6 +123,12 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <button class="btn-primary" onclick="saveServoConfig()">Speichern</button>
 <button class="btn-secondary" onclick="loadServoConfig()">Aktualisieren</button>
 </div>
+<p style="font-size:12px;margin:20px 0 10px 0"><b>Schnell-Positionen:</b></p>
+<div class="buttons">
+<button class="btn-secondary" onclick="setServoPosition(200)">Klein (200µs)</button>
+<button class="btn-secondary" onclick="setServoPosition(600)">Mittel (600µs)</button>
+<button class="btn-secondary" onclick="setServoPosition(1000)">Groß (1000µs)</button>
+</div>
 <div id="msg-servo" class="msg"></div>
 </div>
 
@@ -400,6 +406,12 @@ servo_close_us:servoCloseUs,
 fet_on_time_s:fetOnTimeS
 });
 fetch('/api/servo_config',{method:'POST',headers:{'Content-Type':'application/json'},body:body}).then(r=>r.json()).then(d=>{
+showMsg('servo',d.message,d.status!=='OK');
+}).catch(e=>showMsg('servo','Fehler: '+e.message,true));
+}
+function setServoPosition(pulseUs){
+const body=JSON.stringify({pulse_us:pulseUs});
+fetch('/api/servo/position',{method:'POST',headers:{'Content-Type':'application/json'},body:body}).then(r=>r.json()).then(d=>{
 showMsg('servo',d.message,d.status!=='OK');
 }).catch(e=>showMsg('servo','Fehler: '+e.message,true));
 }

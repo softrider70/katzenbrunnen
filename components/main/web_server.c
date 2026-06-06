@@ -8,6 +8,7 @@
 #include "stack_monitor.h"
 #include "heap_monitor.h"
 #include "esp_log.h"
+#include "nvs.h"
 #include "esp_err.h"
 #include "esp_http_server.h"
 #include "esp_timer.h"
@@ -472,14 +473,91 @@ static esp_err_t servo_config_post_handler(httpd_req_t *req)
     g_servo_config.servo_close_us = servo_close_us;
     g_servo_config.fet_on_time_ms = fet_on_time_s * 1000;
 
-    // In NVS speichern
-    esp_err_t ret = save_servo_config_to_nvs();
+    // In NVS speichern (direkt in web_server.c, da g_nvs_handle nicht verfügbar)
+    nvs_handle_t nvs_handle;
+    esp_err_t ret = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs_handle);
     if (ret != ESP_OK) {
-        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"NVS-Speichern fehlgeschlagen\"}");
+        ESP_LOGE(TAG, "NVS öffnen fehlgeschlagen: %s", esp_err_to_name(ret));
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"NVS open failed\"}");
+        return ESP_OK;
+    }
+
+    ret = nvs_set_u32(nvs_handle, NVS_KEY_CLOSE_TIMEOUT_MS, g_servo_config.close_timeout_ms);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Close Timeout speichern fehlgeschlagen: %s", esp_err_to_name(ret));
+        nvs_close(nvs_handle);
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"NVS set close_timeout failed\"}");
+        return ESP_OK;
+    }
+
+    ret = nvs_set_u32(nvs_handle, NVS_KEY_SERVO_OPEN_US, g_servo_config.servo_open_us);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Servo Open speichern fehlgeschlagen: %s", esp_err_to_name(ret));
+        nvs_close(nvs_handle);
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"NVS set servo_open failed\"}");
+        return ESP_OK;
+    }
+
+    ret = nvs_set_u32(nvs_handle, NVS_KEY_SERVO_CLOSE_US, g_servo_config.servo_close_us);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Servo Close speichern fehlgeschlagen: %s", esp_err_to_name(ret));
+        nvs_close(nvs_handle);
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"NVS set servo_close failed\"}");
+        return ESP_OK;
+    }
+
+    ret = nvs_set_u32(nvs_handle, NVS_KEY_FET_ON_TIME_MS, g_servo_config.fet_on_time_ms);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "FET On Time speichern fehlgeschlagen: %s", esp_err_to_name(ret));
+        nvs_close(nvs_handle);
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"NVS set fet_on_time failed\"}");
+        return ESP_OK;
+    }
+
+    ret = nvs_commit(nvs_handle);
+    nvs_close(nvs_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "NVS Commit fehlgeschlagen: %s", esp_err_to_name(ret));
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"NVS commit failed\"}");
         return ESP_OK;
     }
 
     send_json_response(req, "{\"status\":\"OK\",\"message\":\"Servo-Konfiguration gespeichert\"}");
+    return ESP_OK;
+}
+
+// ============================================================================
+// API Handler: POST /api/servo/position - Servo direkt auf Position fahren
+// ============================================================================
+static esp_err_t servo_position_post_handler(httpd_req_t *req)
+{
+    char body[64] = {0};
+    uint32_t pulse_us;
+
+    int total_len = req->content_len;
+    if (total_len <= 0 || total_len >= (int)sizeof(body)) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Invalid body\"}");
+        return ESP_OK;
+    }
+
+    int received = httpd_req_recv(req, body, total_len);
+    if (received <= 0) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to read body\"}");
+        return ESP_OK;
+    }
+
+    // JSON-Feld parsen
+    if (!parse_json_number(body, "pulse_us", &pulse_us) ||
+        pulse_us < 100 || pulse_us > 1000) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger pulse_us (100-1000us)\"}");
+        return ESP_OK;
+    }
+
+    // Servo auf Position fahren
+    servo_set_position(pulse_us);
+    
+    ESP_LOGI(TAG, "Servo auf Position %lu us gefahren", pulse_us);
+    send_json_response(req, "{\"status\":\"OK\",\"message\":\"Servo-Position gesetzt\"}");
     return ESP_OK;
 }
 
@@ -777,6 +855,13 @@ static httpd_uri_t servo_config_post_uri = {
     .user_ctx = NULL
 };
 
+static httpd_uri_t servo_position_post_uri = {
+    .uri = "/api/servo/position",
+    .method = HTTP_POST,
+    .handler = servo_position_post_handler,
+    .user_ctx = NULL
+};
+
 static httpd_uri_t wifi_reconnect_uri = {
     .uri = "/api/wifi/reconnect",
     .method = HTTP_POST,
@@ -875,6 +960,7 @@ esp_err_t web_server_init(void)
     httpd_register_uri_handler(server, &wifi_config_uri);
     httpd_register_uri_handler(server, &servo_config_get_uri);
     httpd_register_uri_handler(server, &servo_config_post_uri);
+    httpd_register_uri_handler(server, &servo_position_post_uri);
     httpd_register_uri_handler(server, &wifi_reconnect_uri);
     httpd_register_uri_handler(server, &wifi_reset_uri);
     httpd_register_uri_handler(server, &system_reset_uri);

@@ -12,6 +12,12 @@
 esp_err_t ota_init(void);
 
 /**
+ * @brief OTA-Health-Check Task starten (automatischer Rollback)
+ * @return ESP_OK bei Erfolg, Fehlercode sonst
+ */
+esp_err_t ota_start_task(void);
+
+/**
  * @brief OTA-Update starten
  * @param url URL zur Firmware-Datei
  * @return ESP_OK bei Erfolg, Fehlercode sonst

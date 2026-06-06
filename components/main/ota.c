@@ -49,6 +49,42 @@ static ota_state_t ota_state = {
 
 static SemaphoreHandle_t ota_mutex = NULL;
 static TaskHandle_t ota_task_handle = NULL;
+static TaskHandle_t ota_health_check_task_handle = NULL;
+
+// Health-Check Task - markiert Firmware als valid nach erfolgreicher Laufzeit
+static void ota_health_check_task(void *pvParameters)
+{
+    ESP_LOGI(TAG, "Health-Check Task gestartet - warte %d ms vor Validierung", OTA_HEALTH_CHECK_DELAY_MS);
+    
+    // Warten bis System stabil läuft
+    vTaskDelay(pdMS_TO_TICKS(OTA_HEALTH_CHECK_DELAY_MS));
+    
+    // Prüfen ob OTA-Partition im PENDING_VERIFY State
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    esp_ota_img_states_t img_state;
+    
+    if (esp_ota_get_state_partition(running, &img_state) == ESP_OK) {
+        if (img_state == ESP_OTA_IMG_PENDING_VERIFY) {
+            ESP_LOGI(TAG, "Markiere Firmware als valid (Rollback deaktiviert)");
+            esp_err_t ret = esp_ota_mark_app_valid_cancel_rollback();
+            if (ret == ESP_OK) {
+                ESP_LOGI(TAG, "Firmware erfolgreich validiert");
+                xSemaphoreTake(ota_mutex, portMAX_DELAY);
+                ota_state.health_check_passed = true;
+                xSemaphoreGive(ota_mutex);
+            } else {
+                ESP_LOGE(TAG, "Firmware-Validierung fehlgeschlagen: %s", esp_err_to_name(ret));
+            }
+        } else {
+            ESP_LOGI(TAG, "Firmware bereits validiert (State: %d)", img_state);
+        }
+    } else {
+        ESP_LOGW(TAG, "OTA-State konnte nicht abgerufen werden");
+    }
+    
+    ota_health_check_task_handle = NULL;
+    vTaskDelete(NULL);
+}
 
 // OTA-Update Task (ESP-IDF 6.1 API)
 static void ota_update_task(void *pvParameters)
@@ -187,6 +223,33 @@ esp_err_t ota_init(void)
     snprintf(ota_state.current_version, sizeof(ota_state.current_version), "%s", APP_VERSION);
     
     ESP_LOGI(TAG, "OTA-Modul initialisiert (Version: %s)", APP_VERSION);
+    return ESP_OK;
+}
+
+esp_err_t ota_start_task(void)
+{
+#if OTA_HEALTH_CHECK_ENABLED
+    // Health-Check Task starten (wenn aktiviert)
+    BaseType_t ret = xTaskCreatePinnedToCore(
+        ota_health_check_task,
+        "ota_health_check",
+        2048,
+        NULL,
+        1,
+        &ota_health_check_task_handle,
+        TASK_CORE_CONTROL
+    );
+    
+    if (ret != pdPASS) {
+        ESP_LOGE(TAG, "Fehler beim Erstellen des Health-Check-Tasks");
+        return ESP_FAIL;
+    }
+    
+    ESP_LOGI(TAG, "Health-Check Task gestartet (Delay: %d ms)", OTA_HEALTH_CHECK_DELAY_MS);
+#else
+    ESP_LOGI(TAG, "Health-Check deaktiviert (OTA_HEALTH_CHECK_ENABLED=false)");
+#endif
+    
     return ESP_OK;
 }
 

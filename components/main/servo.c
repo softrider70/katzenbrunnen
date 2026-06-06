@@ -97,12 +97,12 @@ void servo_calibrate(void)
     // Grundposition (geschlossen) anfahren
     ESP_LOGI(TAG, "Kalibrierung: Grundposition (geschlossen) anfahren");
     servo_set_position(g_servo_config.servo_close_us);
-    vTaskDelay(pdMS_TO_TICKS(1000));  // 1 Sekunde halten
+    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));  // Konfigurierte FET-An-Zeit halten
 
     // Position geöffnet anfahren
     ESP_LOGI(TAG, "Kalibrierung: Position geöffnet anfahren (%lu us)", g_servo_config.servo_open_us);
     servo_set_position(g_servo_config.servo_open_us);
-    vTaskDelay(pdMS_TO_TICKS(1000));  // 1 Sekunde halten
+    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));  // Konfigurierte FET-An-Zeit halten
 
     // Wieder auf Grundposition zurückfahren
     ESP_LOGI(TAG, "Kalibrierung: Zurück auf Grundposition");
@@ -164,7 +164,7 @@ void servo_open_valve(void)
 
     // Zuerst auf neutrale Position bewegen um Ruck zu vermeiden
     servo_set_position(SERVO_NEUTRAL_US);
-    vTaskDelay(pdMS_TO_TICKS(50));
+    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
 
     ESP_LOGI(TAG, "Wasserhahn öffnen");
     servo_set_position(g_servo_config.servo_open_us);

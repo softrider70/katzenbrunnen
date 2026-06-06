@@ -85,9 +85,10 @@ GPIO5   → 2N7000 MOSFET Gate (Low-Side-Switching für Servo-Stromversorgung)
 - **WiFi-Konfiguration** für Netzwerk-Setup
 - **Servo-Konfiguration** (neu):
   - Close-Timeout (1-30 Sekunden) - Zeit ohne HIGH-Signal vor Schließen (Default: 8s)
-  - Servo-Position offen (100-1000µs) - Pulsweite für geöffneten Wasserhahn (Default: 120µs)
-  - Servo-Position geschlossen (100-1000µs) - Pulsweite für geschlossenen Wasserhahn (Default: 750µs)
+  - Servo-Position offen (50-20000µs) - Pulsweite für geöffneten Wasserhahn (Default: 250µs)
+  - Servo-Position geschlossen (50-20000µs) - Pulsweite für geschlossenen Wasserhahn (Default: 750µs)
   - FET-An-Zeit (1-10 Sekunden) - Zeit für Servo-Stellzeit vor Stromabschaltung
+  - **Servo-Endpunkte:** 555µs im Uhrzeigersinn, 2400µs gegen den Uhrzeigersinn
 - **Error-Log-Anzeige** mit farbcodierter Schweregrad-Indikator
 
 ### WiFi-Einrichtung (Captive Portal):

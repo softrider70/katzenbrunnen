@@ -559,10 +559,10 @@ static esp_err_t servo_position_post_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    // Servo auf Position fahren mit FET-Aktivierung (3 Sekunden)
-    servo_set_position_with_fet(pulse_us, 3000);
+    // Servo auf Position fahren mit FET-Aktivierung (konfigurierte Zeit)
+    servo_set_position_with_fet(pulse_us, g_servo_config.fet_on_time_ms);
 
-    ESP_LOGI(TAG, "Servo auf Position %lu us gefahren (FET 3s aktiviert)", pulse_us);
+    ESP_LOGI(TAG, "Servo auf Position %lu us gefahren (FET %lu ms aktiviert)", pulse_us, g_servo_config.fet_on_time_ms);
     send_json_response(req, "{\"status\":\"OK\",\"message\":\"Servo-Position gesetzt (FET aktiviert)\"}");
     return ESP_OK;
 }

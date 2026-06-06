@@ -40,13 +40,21 @@ GPIO4  → PIR Bewegungssensor (Digital) - RTC GPIO für Deep Sleep Wake-Up
 GPIO48 → WS2812B RGB LED Data (fest verdrahtet vom Hersteller)
 GPIO10  → manueller Taster (mit Pull-up)
 GPIO11  → Gigaline Standard Servo (PWM) - Wasserhahn-Steuerung
+GPIO5   → 2N7000 MOSFET Gate (Low-Side-Switching für Servo-Stromversorgung)
 GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 ```
+
+### Servo-Stromversorgung (2N7000 Low-Side-Switching):
+- **2N7000 N-Channel MOSFET** für Servo-Stromversorgung (~190mA)
+- **Schaltung:** Source → GND, Drain → Servo-GND, Gate → GPIO5
+- **Funktion:** GPIO5 HIGH schaltet Servo ein, GPIO5 LOW schaltet Servo aus
+- **Vorteil:** Servo wird komplett stromlos geschaltet, keine Standby-Verluste
 
 ### Benötigte Komponenten:
 - ESP32-S3 Entwicklungsboard
 - **PIR Bewegungssensor BIS0001** (Elegoo 37-in-1 Kit, 24mm × 33mm)
 - **Gigaline Standard Servo** (39.7mm × 20.37mm × 36.12mm) - Wasserhahn-Mechanik
+- **2N7000 N-Channel MOSFET** (TO-92) - Servo-Stromversorgung (Low-Side-Switching)
 - WS2812B RGB LED
 - Taster
 - Mechanische Verbindung Servo → Wasserhahn-Griff

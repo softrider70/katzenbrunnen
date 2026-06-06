@@ -10,6 +10,7 @@
 #define GPIO_LED_DATA    48  // WS2812B RGB LED (fest verdrahtet auf GPIO48)
 #define GPIO_BUTTON      10  // manueller Taster
 #define GPIO_SERVO       11  // Gigaline Standard Servo (Wasserhahn-Steuerung)
+#define GPIO_SERVO_ENABLE 5  // 2N7000 MOSFET Gate (Low-Side-Switching für Servo-Stromversorgung)
 #define GPIO_BATTERY_ADC 1   // ADC1_CH1 - Batteriespannungsmessung
 
 // ============================================================================

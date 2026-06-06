@@ -131,6 +131,21 @@ void servo_calibrate(void)
     }
 }
 
+/**
+ * @brief Warten mit Watchdog-Feeding für FET-Aktivierung
+ */
+static void servo_wait_with_fet(uint32_t duration_ms)
+{
+    for (int i = 0; i < duration_ms / SERVO_FET_DELAY_MS; i++) {
+        vTaskDelay(pdMS_TO_TICKS(SERVO_FET_DELAY_MS));
+        watchdog_feed();
+    }
+    if (duration_ms % SERVO_FET_DELAY_MS != 0) {
+        vTaskDelay(pdMS_TO_TICKS(duration_ms % SERVO_FET_DELAY_MS));
+        watchdog_feed();
+    }
+}
+
 void servo_set_position(uint32_t pulse_us)
 {
     // Pulsweite in 14-bit Duty umrechnen (20ms Periode, 16383 Schritte)
@@ -187,14 +202,7 @@ void servo_open_valve(void)
     }
 
     // FET nach konfigurierbarer Zeit ausschalten (Strom sparen)
-    for (int i = 0; i < g_servo_config.fet_on_time_ms / 100; i++) {
-        vTaskDelay(pdMS_TO_TICKS(100));
-        watchdog_feed();
-    }
-    if (g_servo_config.fet_on_time_ms % 100 != 0) {
-        vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms % 100));
-        watchdog_feed();
-    }
+    servo_wait_with_fet(g_servo_config.fet_on_time_ms);
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 }
 
@@ -235,14 +243,7 @@ void servo_close_valve(void)
     // FET einschalten, Servo positionieren, Timeout, FET aus
     gpio_set_level(GPIO_SERVO_ENABLE, 1);
     servo_set_position(g_servo_config.servo_close_us);
-    for (int i = 0; i < g_servo_config.fet_on_time_ms / 100; i++) {
-        vTaskDelay(pdMS_TO_TICKS(100));
-        watchdog_feed();
-    }
-    if (g_servo_config.fet_on_time_ms % 100 != 0) {
-        vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms % 100));
-        watchdog_feed();
-    }
+    servo_wait_with_fet(g_servo_config.fet_on_time_ms);
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 
     // Telegram-Nachricht senden
@@ -272,14 +273,7 @@ void servo_emergency_close(void)
     // FET einschalten, Servo positionieren, Timeout, FET aus
     gpio_set_level(GPIO_SERVO_ENABLE, 1);
     servo_set_position(g_servo_config.servo_close_us);
-    for (int i = 0; i < g_servo_config.fet_on_time_ms / 100; i++) {
-        vTaskDelay(pdMS_TO_TICKS(100));
-        watchdog_feed();
-    }
-    if (g_servo_config.fet_on_time_ms % 100 != 0) {
-        vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms % 100));
-        watchdog_feed();
-    }
+    servo_wait_with_fet(g_servo_config.fet_on_time_ms);
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 
     ESP_LOGE(TAG, "EMERGENCY: Wasserhahn geschlossen");

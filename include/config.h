@@ -18,6 +18,7 @@
 #define SERVO_OPEN_ANGLE_US      170    // Servo-Position für geöffneten Wasserhahn (Pulsweite in µs)
 #define SERVO_CLOSE_ANGLE_US     780    // Servo-Position für geschlossenen Wasserhahn (Pulsweite in µs)
 #define CLOSE_TIMEOUT_MS         8000   // Timeout ohne HIGH-Signal vor Schließen (ms) - Default 8s
+#define SERVO_FET_DELAY_MS       100    // FET-Schleifen-Verzögerung in ms
 
 // ============================================================================
 // Servo Configuration - Gigaline Standard Servo
@@ -116,7 +117,7 @@
 #define WIFI_AP_NETMASK_OCTET3  255
 #define WIFI_AP_NETMASK_OCTET4  0
 #define WIFI_HOSTNAME           "katzenbrunnen"  // mDNS Hostname
-#define WIFI_TX_POWER           14  // WiFi Sendeleistung in dBm (0-20, Standard: 14 für 7m Entfernung)
+#define WIFI_TX_POWER           20  // WiFi Sendeleistung in dBm (0-20, Max: 20 für Netzbetrieb)
 #define WIFI_TX_POWER_HW_MAX    84  // TX-Power Hardware Limit (ESP32-S3)
 
 // ============================================================================

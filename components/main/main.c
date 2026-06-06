@@ -41,13 +41,14 @@ servo_config_t g_servo_config = {
 
 // SNTP Zeit-Synchronisation
 static bool sntp_initialized = false;
+static bool calibration_pending = false;
 
 static void time_sync_notification_cb(struct timeval *tv)
 {
     ESP_LOGI(TAG, "Zeit synchronisiert: %s", ctime(&tv->tv_sec));
 
-    // Servo-Kalibrierung nach Zeitsynchronisierung ausführen
-    servo_calibrate();
+    // Kalibrierung im control_task auslösen (nicht im Interrupt-Kontext)
+    calibration_pending = true;
 }
 
 static void initialize_sntp(void)
@@ -383,6 +384,12 @@ static void control_task(void *pvParameters)
         uint64_t now = esp_timer_get_time();
         bool motion = pir_get_gpio_level();
         bool valve_open = servo_is_valve_open();
+
+        // Kalibrierung ausführen wenn ausgelöst (nicht im Interrupt-Kontext)
+        if (calibration_pending) {
+            calibration_pending = false;
+            servo_calibrate();
+        }
 
         if (!valve_open) {
             // Wasserhahn geschlossen: bei HIGH sofort öffnen

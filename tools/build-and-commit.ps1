@@ -43,32 +43,26 @@ if ($buildExitCode -ne 0) {
 
 Write-Host "Build erfolgreich! (Dauer: ${buildDuration:F1}s)" -ForegroundColor Green
 
-# Commit mit Buildnummer und version.h
-$gitAddFiles = @()
+# Alle Änderungen committen (Sourcecode + Build-Metadaten)
+Write-Host "Staging all changes..." -ForegroundColor Cyan
+& git add -A
 
-if (Test-Path $buildNumberPath) { $gitAddFiles += $buildNumberPath }
-$versionHeaderPath = Join-Path $ProjectPath "include\version.h"
-if (Test-Path $versionHeaderPath) { $gitAddFiles += $versionHeaderPath }
+$commitMessage = "chore: build #$buildNumber"
+& git commit -m $commitMessage 2>&1
 
-if ($gitAddFiles.Count -gt 0) {
-    Write-Host "Staging build metadata files..." -ForegroundColor Cyan
-    & git add -f @gitAddFiles
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "All changes committed: $commitMessage" -ForegroundColor Green
 
-    $commitMessage = "chore: build #$buildNumber"
-    & git commit -m $commitMessage 2>&1
-
+    # Push zum Remote Repository
+    Write-Host "Pushing to remote repository..." -ForegroundColor Cyan
+    $pushResult = & git push 2>&1
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "Build metadata committed: $commitMessage" -ForegroundColor Green
-
-        # Push zum Remote Repository
-        Write-Host "Pushing to remote repository..." -ForegroundColor Cyan
-        $pushResult = & git push 2>&1
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "Push successful" -ForegroundColor Green
-        } else {
-            Write-Host "Push failed (may need manual push): $pushResult" -ForegroundColor Yellow
-        }
+        Write-Host "Push successful" -ForegroundColor Green
+    } else {
+        Write-Host "Push failed (may need manual push): $pushResult" -ForegroundColor Yellow
     }
+} else {
+    Write-Host "No changes to commit" -ForegroundColor Yellow
 }
 
 # Buildnummer am Schluss ausgeben

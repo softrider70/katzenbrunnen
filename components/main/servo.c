@@ -90,27 +90,26 @@ void servo_calibrate(void)
 {
     ESP_LOGI(TAG, "Servo-Kalibrierung gestartet");
 
+    // FET einschalten
+    gpio_set_level(GPIO_SERVO_ENABLE, 1);
+
     // Grundposition (geschlossen) anfahren
     ESP_LOGI(TAG, "Kalibrierung: Grundposition (geschlossen) anfahren");
-    gpio_set_level(GPIO_SERVO_ENABLE, 1);
     servo_set_position(g_servo_config.servo_close_us);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
-    gpio_set_level(GPIO_SERVO_ENABLE, 0);
+    vTaskDelay(pdMS_TO_TICKS(1000));  // 1 Sekunde halten
 
-    // 30% in Richtung offen anfahren
-    uint32_t range = g_servo_config.servo_open_us - g_servo_config.servo_close_us;
-    uint32_t test_position = g_servo_config.servo_close_us + (range * 3 / 10);
-    ESP_LOGI(TAG, "Kalibrierung: 30%% in Richtung offen anfahren (%lu us)", test_position);
-    gpio_set_level(GPIO_SERVO_ENABLE, 1);
+    // 100µs in Richtung offen anfahren
+    uint32_t test_position = g_servo_config.servo_close_us - 100;
+    ESP_LOGI(TAG, "Kalibrierung: 100µs in Richtung offen anfahren (%lu us)", test_position);
     servo_set_position(test_position);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
-    gpio_set_level(GPIO_SERVO_ENABLE, 0);
+    vTaskDelay(pdMS_TO_TICKS(1000));  // 1 Sekunde halten
 
     // Wieder auf Grundposition zurückfahren
     ESP_LOGI(TAG, "Kalibrierung: Zurück auf Grundposition");
-    gpio_set_level(GPIO_SERVO_ENABLE, 1);
     servo_set_position(g_servo_config.servo_close_us);
     vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
+
+    // FET ausschalten
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 
     ESP_LOGI(TAG, "Servo-Kalibrierung abgeschlossen");

@@ -191,12 +191,11 @@ void servo_close_valve(void)
     }
 
     ESP_LOGI(TAG, "Wasserhahn schließen (Dauer: %llu ms)", (unsigned long long)duration_ms);
+
+    // FET einschalten, Servo positionieren, Timeout, FET aus
+    gpio_set_level(GPIO_SERVO_ENABLE, 1);
     servo_set_position(g_servo_config.servo_close_us);
-
-    // FET nach konfigurierbarer Zeit ausschalten (Strom sparen)
     vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
-
-    // FET ausschalten (Servo-Stromversorgung deaktivieren)
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 }
 
@@ -216,9 +215,8 @@ void servo_emergency_close(void)
     valve_open = false;
     portEXIT_CRITICAL(&servo_mux);
 
-    // FET einschalten für Emergency-Schließen
+    // FET einschalten, Servo positionieren, Timeout, FET aus
     gpio_set_level(GPIO_SERVO_ENABLE, 1);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
     servo_set_position(g_servo_config.servo_close_us);
     vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
     gpio_set_level(GPIO_SERVO_ENABLE, 0);

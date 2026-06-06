@@ -49,9 +49,6 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <div class="status-row"><span>SSID:</span><span id="wifi-ssid">-</span></div>
 <div class="status-row"><span>IP:</span><span id="wifi-ip">-</span></div>
 <div class="status-row"><span>Version:</span><span id="version-info">-</span></div>
-<div class="buttons">
-<button class="btn-primary" onclick="toggleValve()">Wasserhahn umschalten</button>
-</div>
 <div id="msg-dashboard" class="msg"></div>
 </div>
 
@@ -211,12 +208,6 @@ document.getElementById('wifi-ssid').textContent=d.wifi_ssid;
 document.getElementById('wifi-ip').textContent=d.wifi_ip;
 document.getElementById('version-info').textContent=d.version+' (Build '+d.build_number+')';
 }).catch(e=>console.error('updateDashboard failed:',e));
-}
-function toggleValve(){
-fetch('/api/valve/toggle',{method:'POST'}).then(r=>r.json()).then(d=>{
-showMsg('dashboard',d.message,false);
-updateDashboard();
-}).catch(e=>showMsg('dashboard','Fehler: '+e.message,true));
 }
 function loadLogs(){
 fetch('/api/errors').then(r=>r.json()).then(d=>{

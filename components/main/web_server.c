@@ -196,25 +196,6 @@ static esp_err_t error_codes_handler(httpd_req_t *req)
 }
 
 // ============================================================================
-// API Handler: POST /api/valve/toggle - Toggle Water Valve
-// ============================================================================
-static esp_err_t valve_toggle_handler(httpd_req_t *req)
-{
-    char response[128];
-    
-    if (servo_is_valve_open()) {
-        servo_close_valve();
-        snprintf(response, sizeof(response), "{\"status\":\"OK\",\"message\":\"Valve closed\"}");
-    } else {
-        servo_open_valve();
-        snprintf(response, sizeof(response), "{\"status\":\"OK\",\"message\":\"Valve opened\"}");
-    }
-    
-    send_json_response(req, response);
-    return ESP_OK;
-}
-
-// ============================================================================
 // API Handler: POST /api/errors/clear - Clear Error Log
 // ============================================================================
 static esp_err_t errors_clear_handler(httpd_req_t *req)
@@ -805,13 +786,6 @@ static httpd_uri_t error_codes_uri = {
     .user_ctx = NULL
 };
 
-static httpd_uri_t valve_toggle_uri = {
-    .uri = "/api/valve/toggle",
-    .method = HTTP_POST,
-    .handler = valve_toggle_handler,
-    .user_ctx = NULL
-};
-
 static httpd_uri_t errors_clear_uri = {
     .uri = "/api/errors/clear",
     .method = HTTP_POST,
@@ -958,7 +932,6 @@ esp_err_t web_server_init(void)
     httpd_register_uri_handler(server, &status_uri);
     httpd_register_uri_handler(server, &errors_uri);
     httpd_register_uri_handler(server, &error_codes_uri);
-    httpd_register_uri_handler(server, &valve_toggle_uri);
     httpd_register_uri_handler(server, &errors_clear_uri);
     httpd_register_uri_handler(server, &ota_status_uri);
     httpd_register_uri_handler(server, &ota_start_uri);

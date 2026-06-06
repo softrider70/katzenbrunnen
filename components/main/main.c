@@ -83,10 +83,10 @@ static void load_servo_config_from_nvs(void)
         ESP_LOGI(TAG, "Close Timeout nicht in NVS, verwende Default: %lu ms", g_servo_config.close_timeout_ms);
     }
 
-    // servo_open_us (100-1000µs)
+    // servo_open_us (50-20000µs)
     ret = nvs_get_u32(g_nvs_handle, NVS_KEY_SERVO_OPEN_US, &value);
     if (ret == ESP_OK) {
-        if (value >= 100 && value <= 1000) {
+        if (value >= 50 && value <= 20000) {
             g_servo_config.servo_open_us = value;
             ESP_LOGI(TAG, "Servo Open aus NVS: %lu us", value);
         } else {
@@ -96,10 +96,10 @@ static void load_servo_config_from_nvs(void)
         ESP_LOGI(TAG, "Servo Open nicht in NVS, verwende Default: %lu us", g_servo_config.servo_open_us);
     }
 
-    // servo_close_us (100-1000µs)
+    // servo_close_us (50-20000µs)
     ret = nvs_get_u32(g_nvs_handle, NVS_KEY_SERVO_CLOSE_US, &value);
     if (ret == ESP_OK) {
-        if (value >= 100 && value <= 1000) {
+        if (value >= 50 && value <= 20000) {
             g_servo_config.servo_close_us = value;
             ESP_LOGI(TAG, "Servo Close aus NVS: %lu us", value);
         } else {

@@ -48,6 +48,7 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <div class="status-row"><span>WiFi:</span><span id="wifi-state">-</span></div>
 <div class="status-row"><span>SSID:</span><span id="wifi-ssid">-</span></div>
 <div class="status-row"><span>IP:</span><span id="wifi-ip">-</span></div>
+<div class="status-row"><span>Version:</span><span id="version-info">-</span></div>
 <div class="buttons">
 <button class="btn-primary" onclick="toggleValve()">Wasserhahn umschalten</button>
 </div>
@@ -209,6 +210,7 @@ document.getElementById('wifi-state').textContent=d.wifi_connected?'Verbunden':'
 document.getElementById('wifi-state').style.color=d.wifi_connected?'#22c55e':'#ef4444';
 document.getElementById('wifi-ssid').textContent=d.wifi_ssid;
 document.getElementById('wifi-ip').textContent=d.wifi_ip;
+document.getElementById('version-info').textContent=d.version+' (Build '+d.build_number+')';
 }).catch(e=>console.error('updateDashboard failed:',e));
 }
 function toggleValve(){

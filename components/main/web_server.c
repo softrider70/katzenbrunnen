@@ -13,6 +13,7 @@
 #include "esp_http_server.h"
 #include "esp_timer.h"
 #include "esp_system.h"
+#include "version.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <string.h>
@@ -94,7 +95,9 @@ static esp_err_t status_handler(httpd_req_t *req)
         "\"heap_percent\":%u,"
         "\"heap_warning\":%s,"
         "\"heap_critical\":%s,"
-        "\"uptime_ms\":%llu"
+        "\"uptime_ms\":%llu,"
+        "\"version\":\"%s\","
+        "\"build_number\":%d"
         "}",
         valve_open ? "OPEN" : "CLOSED",
         valve_open ? "true" : "false",
@@ -109,7 +112,9 @@ static esp_err_t status_handler(httpd_req_t *req)
         heap_info.free_percent,
         heap_info.warning ? "true" : "false",
         heap_info.critical ? "true" : "false",
-        (unsigned long long)(esp_timer_get_time() / 1000)
+        (unsigned long long)(esp_timer_get_time() / 1000),
+        VERSION_STRING,
+        BUILD_NUMBER
     );
     
     send_json_response(req, json_response);
@@ -554,11 +559,11 @@ static esp_err_t servo_position_post_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    // Servo auf Position fahren
-    servo_set_position(pulse_us);
-    
-    ESP_LOGI(TAG, "Servo auf Position %lu us gefahren", pulse_us);
-    send_json_response(req, "{\"status\":\"OK\",\"message\":\"Servo-Position gesetzt\"}");
+    // Servo auf Position fahren mit FET-Aktivierung (3 Sekunden)
+    servo_set_position_with_fet(pulse_us, 3000);
+
+    ESP_LOGI(TAG, "Servo auf Position %lu us gefahren (FET 3s aktiviert)", pulse_us);
+    send_json_response(req, "{\"status\":\"OK\",\"message\":\"Servo-Position gesetzt (FET aktiviert)\"}");
     return ESP_OK;
 }
 

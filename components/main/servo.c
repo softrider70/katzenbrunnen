@@ -125,6 +125,23 @@ void servo_set_position(uint32_t pulse_us)
     ESP_LOGD(TAG, "Servo Position: %lu us", pulse_us);
 }
 
+void servo_set_position_with_fet(uint32_t pulse_us, uint32_t fet_duration_ms)
+{
+    // FET aktivieren
+    gpio_set_level(GPIO_SERVO_ENABLE, 1);
+    ESP_LOGI(TAG, "FET aktiviert für %lu ms", fet_duration_ms);
+
+    // Servo-Position setzen
+    servo_set_position(pulse_us);
+
+    // Warten auf Servo-Stellzeit
+    vTaskDelay(pdMS_TO_TICKS(fet_duration_ms));
+
+    // FET deaktivieren
+    gpio_set_level(GPIO_SERVO_ENABLE, 0);
+    ESP_LOGI(TAG, "FET deaktiviert");
+}
+
 void servo_open_valve(void)
 {
     xSemaphoreTake(servo_mutex, portMAX_DELAY);

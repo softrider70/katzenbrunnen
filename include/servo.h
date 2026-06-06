@@ -23,6 +23,13 @@ void servo_calibrate(void);
 void servo_set_position(uint32_t pulse_us);
 
 /**
+ * @brief Servo auf Position bewegen mit FET-Aktivierung
+ * @param pulse_us Pulsweite in Mikrosekunden
+ * @param fet_duration_ms FET-Aktivierungsdauer in Millisekunden
+ */
+void servo_set_position_with_fet(uint32_t pulse_us, uint32_t fet_duration_ms);
+
+/**
  * @brief Wasserhahn öffnen
  */
 void servo_open_valve(void);

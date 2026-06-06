@@ -34,6 +34,8 @@ static const char *TAG = "katzenbrunnen";
 nvs_handle_t g_nvs_handle;
 
 // SNTP Zeit-Synchronisation
+static bool sntp_initialized = false;
+
 static void time_sync_notification_cb(struct timeval *tv)
 {
     ESP_LOGI(TAG, "Zeit synchronisiert: %s", ctime(&tv->tv_sec));
@@ -41,11 +43,25 @@ static void time_sync_notification_cb(struct timeval *tv)
 
 static void initialize_sntp(void)
 {
+    if (sntp_initialized) {
+        return;
+    }
     ESP_LOGI(TAG, "Initialisiere SNTP");
     esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
     esp_sntp_setservername(0, "pool.ntp.org");
     sntp_set_time_sync_notification_cb(time_sync_notification_cb);
     esp_sntp_init();
+    sntp_initialized = true;
+}
+
+// WiFi-Event-Handler für SNTP-Initialisierung nach Verbindung
+static void wifi_ip_event_handler(void* arg, esp_event_base_t event_base,
+                                    int32_t event_id, void* event_data)
+{
+    if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        ESP_LOGI(TAG, "WiFi verbunden, initialisiere SNTP");
+        initialize_sntp();
+    }
 }
 
 // Status-Variablen (einzige Wahrheit für "Ventil offen" ist das servo-Modul)
@@ -110,7 +126,10 @@ static esp_err_t init_hardware(void)
     
     ret = wifi_init();
     if (ret != ESP_OK) return ret;
-    
+
+    // WiFi-Event-Handler für SNTP-Initialisierung registrieren
+    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_ip_event_handler, NULL);
+
     ret = web_server_init();
     if (ret != ESP_OK) return ret;
     
@@ -504,9 +523,8 @@ void app_main(void)
     ESP_LOGI(TAG, "ESP32-S3 erkannt: %s",
              strcmp(CONFIG_IDF_TARGET, "esp32s3") == 0 ? "Ja" : "Nein");
 
-    // SNTP für Zeit-Synchronisation initialisieren
-    initialize_sntp();
-    
+    // SNTP wird automatisch nach WiFi-Verbindung initialisiert (wifi_ip_event_handler)
+
     // Module-Tasks starten
     if (pir_start_task() != ESP_OK) {
         ESP_LOGE(TAG, "PIR-Task Start fehlgeschlagen");

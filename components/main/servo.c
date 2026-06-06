@@ -3,9 +3,11 @@
 #include "esp_log.h"
 #include "esp_err.h"
 #include "driver/ledc.h"
+#include "driver/gpio.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
 #include "freertos/portmacro.h"
 #include <string.h>
 
@@ -62,11 +64,28 @@ esp_err_t servo_init(void)
         ESP_LOGE(TAG, "LEDC Channel-Konfiguration fehlgeschlagen: %s", esp_err_to_name(ret));
         return ret;
     }
-    
+
+    // GPIO5 (FET Enable) als Output konfigurieren
+    gpio_config_t io_conf = {
+        .intr_type = GPIO_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = (1ULL << GPIO_SERVO_ENABLE),
+        .pull_down_en = 0,
+        .pull_up_en = 0,
+    };
+    ret = gpio_config(&io_conf);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "FET-Enable GPIO-Konfiguration fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    // FET initial ausschalten (Servo stromlos)
+    gpio_set_level(GPIO_SERVO_ENABLE, 0);
+
     // Servo auf geschlossene Position setzen
     servo_set_position(SERVO_CLOSE_ANGLE_US);
-    
-    ESP_LOGI(TAG, "Servo-Modul initialisiert (GPIO %d)", GPIO_SERVO);
+
+    ESP_LOGI(TAG, "Servo-Modul initialisiert (GPIO %d, FET-Enable GPIO %d)", GPIO_SERVO, GPIO_SERVO_ENABLE);
     return ESP_OK;
 }
 
@@ -93,6 +112,9 @@ void servo_open_valve(void)
     valve_open = true;
     valve_open_time = esp_timer_get_time();
     xSemaphoreGive(servo_mutex);
+
+    // FET einschalten (Servo-Stromversorgung aktivieren)
+    gpio_set_level(GPIO_SERVO_ENABLE, 1);
 
     ESP_LOGI(TAG, "Wasserhahn öffnen");
     servo_set_position(SERVO_OPEN_ANGLE_US);
@@ -132,6 +154,12 @@ void servo_close_valve(void)
 
     ESP_LOGI(TAG, "Wasserhahn schließen (Dauer: %llu ms)", (unsigned long long)duration_ms);
     servo_set_position(SERVO_CLOSE_ANGLE_US);
+
+    // 5 Sekunden Verzögerung für Servo-Stellzeit (Servo hält Position ohne Strom)
+    vTaskDelay(pdMS_TO_TICKS(5000));
+
+    // FET ausschalten (Servo-Stromversorgung deaktivieren)
+    gpio_set_level(GPIO_SERVO_ENABLE, 0);
 }
 
 bool servo_is_valve_open(void)

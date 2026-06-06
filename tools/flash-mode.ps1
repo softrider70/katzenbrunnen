@@ -6,8 +6,8 @@ param(
     [string]$FlashType = "auto",
 
     [string]$UsbPort = "",
-    [string]$DeviceIp = "",
-    [string]$HostIp = "",
+    [string]$DeviceIp = "192.168.1.191",
+    [string]$HostIp = "192.168.1.191",
     [int]$HttpPort = 8070,
     [int]$StatusTimeoutSec = 240,
     [int]$Baud = 921600
@@ -50,8 +50,7 @@ function Get-AutoUsbPort {
         return $ports[0]
     }
 
-    # Versuche ESP32 zu erkennen via esptool
-    Write-Host "[PORT] Suche ESP32 auf verfügbaren Ports..." -ForegroundColor Cyan
+    Write-Host "[PORT] Suche ESP32 auf verfuegbaren Ports..." -ForegroundColor Cyan
     foreach ($port in $ports) {
         try {
             $result = & python -m esptool --port $port --baud 115200 --connect-attempts 1 chip_id 2>&1
@@ -60,18 +59,15 @@ function Get-AutoUsbPort {
                 return $port
             }
         } catch {
-            # Nichts tun, nächster Port
         }
     }
 
-    # Fallback: COM3 wenn verfügbar
     if ($ports -contains 'COM3') {
         Write-Host "[PORT] Verwende COM3 (Standard)" -ForegroundColor Yellow
         return 'COM3'
     }
 
-    # Letzter Fallback: Erster Port
-    Write-Host "[PORT] Verfügbare Ports: $($ports -join ', ')" -ForegroundColor Yellow
+    Write-Host "[PORT] Verfuegbare Ports: $($ports -join ', ')" -ForegroundColor Yellow
     Write-Host "[PORT] Verwende ersten Port: $($ports[0])" -ForegroundColor Yellow
     return $ports[0]
 }
@@ -79,19 +75,17 @@ function Get-AutoUsbPort {
 function Test-DeviceHasPartitionTable {
     param([string]$Port)
 
-    Write-Host "[DETECT] Prüfe ob Gerät Partition Table hat..." -ForegroundColor Cyan
+    Write-Host "[DETECT] Pruefe ob Geraet Partition Table hat..." -ForegroundColor Cyan
     try {
-        # Versuche Partition Table zu lesen
         $result = & python -m esptool --port $Port --baud 115200 --connect-attempts 2 read_flash 0x8000 32 - 2>&1
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "[DETECT] ✓ Partition Table gefunden (Update-Modus)" -ForegroundColor Green
+            Write-Host "[DETECT] [OK] Partition Table gefunden (Update-Modus)" -ForegroundColor Green
             return $true
         }
     } catch {
-        # Fehler ignorieren
     }
 
-    Write-Host "[DETECT] ✗ Keine Partition Table (Initial-Flash nötig)" -ForegroundColor Yellow
+    Write-Host "[DETECT] [X] Keine Partition Table (Initial-Flash noetig)" -ForegroundColor Yellow
     return $false
 }
 
@@ -117,7 +111,7 @@ if (Test-Path $stateFile) {
     try {
         $previousState = Get-Content -Raw $stateFile | ConvertFrom-Json
     } catch {
-        Write-Host "⚠️ Konnte letzte Flash-Konfiguration nicht laden. Ignoriere sie." -ForegroundColor Yellow
+        Write-Host "[WARN] Konnte letzte Flash-Konfiguration nicht laden. Ignoriere sie." -ForegroundColor Yellow
     }
 }
 
@@ -161,38 +155,38 @@ function Needs-Build {
     )
 
     if (-not (Test-Path $BinaryPath)) {
-        Write-Host "[BUILD CHECK] Kein Build vorhanden. Build wird ausgeführt." -ForegroundColor Yellow
+        Write-Host "[BUILD CHECK] Kein Build vorhanden. Build wird ausgefuehrt." -ForegroundColor Yellow
         return $true
     }
 
     if (-not (Test-Path $CommitStatePath)) {
-        Write-Host "[BUILD CHECK] Kein letztes Build-Commit gefunden. Build wird ausgeführt." -ForegroundColor Yellow
+        Write-Host "[BUILD CHECK] Kein letztes Build-Commit gefunden. Build wird ausgefuehrt." -ForegroundColor Yellow
         return $true
     }
 
     $currentCommit = Get-GitCommitHash
     if (-not $currentCommit) {
-        Write-Host "[BUILD CHECK] Git Commit kann nicht ermittelt werden. Build wird sicherheitshalber ausgeführt." -ForegroundColor Yellow
+        Write-Host "[BUILD CHECK] Git Commit kann nicht ermittelt werden. Build wird sicherheitshalber ausgefuehrt." -ForegroundColor Yellow
         return $true
     }
 
     $lastBuiltCommit = Get-Content -Raw $CommitStatePath
     if ($currentCommit -ne $lastBuiltCommit) {
-        Write-Host "[BUILD CHECK] Neuer Commit erkannt (aktuell: $currentCommit, letzter Build: $lastBuiltCommit). Build wird ausgeführt." -ForegroundColor Yellow
+        Write-Host "[BUILD CHECK] Neuer Commit erkannt (aktuell: $currentCommit, letzter Build: $lastBuiltCommit). Build wird ausgefuehrt." -ForegroundColor Yellow
         return $true
     }
 
     if (Is-GitTreeDirty) {
-        Write-Host "[BUILD CHECK] Uncommitted Änderungen vorhanden. Build wird ausgeführt." -ForegroundColor Yellow
+        Write-Host "[BUILD CHECK] Uncommitted Aenderungen vorhanden. Build wird ausgefuehrt." -ForegroundColor Yellow
         return $true
     }
 
-    Write-Host "[BUILD CHECK] Build ist aktuell für Commit $currentCommit." -ForegroundColor Green
+    Write-Host "[BUILD CHECK] Build ist aktuell fuer Commit $currentCommit." -ForegroundColor Green
     return $false
 }
 
 if ($Mode -eq 'last') {
-    if ($previousState -ne $null -and $previousState.mode) {
+    if ($null -ne $previousState -and $previousState.mode) {
         $Mode = $previousState.mode
         Write-Host "[FLASH] Verwende letzten Modus: $Mode" -ForegroundColor Cyan
     } else {
@@ -209,7 +203,7 @@ if ($Mode -eq 'auto') {
 }
 
 if ($Mode -eq 'usb') {
-    if ([string]::IsNullOrWhiteSpace($UsbPort) -and $previousState -ne $null -and $previousState.usbPort) {
+    if ([string]::IsNullOrWhiteSpace($UsbPort) -and $null -ne $previousState -and $previousState.usbPort) {
         $UsbPort = $previousState.usbPort
     }
 
@@ -220,7 +214,6 @@ if ($Mode -eq 'usb') {
 
     Write-Host "[FLASH] Mode=usb, Port=$UsbPort"
 
-    # Auto-Detect Flash Type
     if ($FlashType -eq 'auto') {
         $FlashType = Get-FlashType -Port $UsbPort
     }
@@ -238,7 +231,6 @@ if ($Mode -eq 'usb') {
         }
     }
 
-    # Prüfe ob alle Dateien für Initial-Flash existieren
     if ($FlashType -eq 'initial') {
         $missing = @()
         if (-not (Test-Path $bootloaderPath)) { $missing += "bootloader.bin" }
@@ -246,14 +238,13 @@ if ($Mode -eq 'usb') {
         if (-not (Test-Path $binPath)) { $missing += "katzenbrunnen.bin" }
 
         if ($missing.Count -gt 0) {
-            throw "Fehlende Dateien für Initial-Flash: $($missing -join ', ') - Bitte erst build-and-commit ausführen"
+            throw "Fehlende Dateien fuer Initial-Flash: $($missing -join ', ') - Bitte erst build-and-commit ausfuehren"
         }
     }
 
-    # Flash durchführen
     $startTime = Get-Date
     if ($FlashType -eq 'initial') {
-        Write-Host "[FLASH] 🚀 Initial-Flash (Bootloader + Partition + App)..." -ForegroundColor Cyan
+        Write-Host "[FLASH] [INIT] Initial-Flash (Bootloader + Partition + App)..." -ForegroundColor Cyan
         Write-Host "  Bootloader: $bootloaderPath" -ForegroundColor Gray
         Write-Host "  Partition:  $partitionPath" -ForegroundColor Gray
         Write-Host "  App:        $binPath" -ForegroundColor Gray
@@ -265,7 +256,7 @@ if ($Mode -eq 'usb') {
                 Write-Host "  $_" -ForegroundColor Gray
             }
     } else {
-        Write-Host "[FLASH] ⚡ Fast Update (nur App)..." -ForegroundColor Cyan
+        Write-Host "[FLASH] [FAST] Fast Update (nur App)..." -ForegroundColor Cyan
         Write-Host "  App: $binPath -> 0x20000" -ForegroundColor Gray
 
         & python -m esptool --port $UsbPort --baud $Baud write_flash 0x20000 $binPath 2>&1 | ForEach-Object {
@@ -277,30 +268,30 @@ if ($Mode -eq 'usb') {
     $duration = ((Get-Date) - $startTime).TotalSeconds
 
     if ($exitCode -eq 0) {
-        Write-Host "`n[FLASH] ✅ Flash erfolgreich! (${duration:F1}s)" -ForegroundColor Green
+        Write-Host "`n[FLASH] [OK] Flash erfolgreich! (${duration:F1}s)" -ForegroundColor Green
         $state = @{ mode = 'usb'; usbPort = $UsbPort; deviceIp = ''; hostIp = ''; httpPort = $HttpPort; flashType = $FlashType }
         $state | ConvertTo-Json | Set-Content -NoNewline -Encoding UTF8 $stateFile
         Write-Host "[FLASH] Konfiguration gespeichert (Modus: $FlashType)" -ForegroundColor Green
 
-        Write-Host "`n[FLASH] Nächste Schritte:" -ForegroundColor Cyan
+        Write-Host "`n[FLASH] Naechste Schritte:" -ForegroundColor Cyan
         if ($FlashType -eq 'initial') {
-            Write-Host "  - Zukünftige Updates: flash-mode.ps1 -Mode usb -FlashType update (schneller)" -ForegroundColor Yellow
+            Write-Host "  - Zukuenftige Updates: flash-mode.ps1 -Mode usb -FlashType update (schneller)" -ForegroundColor Yellow
         }
         Write-Host "  - Monitor starten: idf.py -p $UsbPort monitor" -ForegroundColor Yellow
     } else {
-        Write-Host "`n[FLASH] ❌ Flash fehlgeschlagen!" -ForegroundColor Red
+        Write-Host "`n[FLASH] [ERROR] Flash fehlgeschlagen!" -ForegroundColor Red
     }
     exit $exitCode
 }
 
 if ($Mode -eq 'ota') {
-    if ([string]::IsNullOrWhiteSpace($DeviceIp) -and $previousState -ne $null -and $previousState.deviceIp) {
+    if ([string]::IsNullOrWhiteSpace($DeviceIp) -and $null -ne $previousState -and $previousState.deviceIp) {
         $DeviceIp = $previousState.deviceIp
     }
-    if ([string]::IsNullOrWhiteSpace($HostIp) -and $previousState -ne $null -and $previousState.hostIp) {
+    if ([string]::IsNullOrWhiteSpace($HostIp) -and $null -ne $previousState -and $previousState.hostIp) {
         $HostIp = $previousState.hostIp
     }
-    if ($previousState -ne $null -and $previousState.httpPort) {
+    if ($null -ne $previousState -and $previousState.httpPort) {
         $HttpPort = $previousState.httpPort
     }
 

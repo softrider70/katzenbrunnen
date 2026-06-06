@@ -79,6 +79,13 @@ Bei "build" Kommando immer das **projektspezifische Build-Skript** verwenden (z.
 - Automatische Versionsverwaltung
 - Keine vergessenen Commits nach Build
 
+**Build-Jobs Optimierung (Intel Core Ultra 7 155H):**
+- Hybrid-Architektur: 6 P-Cores + 8 E-Cores + 2 Low-Power E-Cores (22 logische Kerne)
+- **Optimale parallele Jobs: 6** (nur P-Cores)
+- Grund: Alle Jobs auf schnellen P-Cores, weniger Context-Switching, bessere CPU-Auslastung
+- Getestet: 16 Jobs (43s) vs. 6 Jobs (7,6s) = ~82% schneller
+- Environment-Variable: `IDF_PY_BUILD_JOBS = '6'`
+
 ## 7. Webanfragen
 - Webanfragen zuerst über Context7 (mcp0_query-docs) statt search_web
 

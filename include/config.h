@@ -14,6 +14,11 @@
 #define GPIO_BATTERY_ADC 1   // ADC1_CH1 - Batteriespannungsmessung
 
 // ============================================================================
+// LED Configuration
+// ============================================================================
+#define LED_ENABLE false  // LEDs aktivieren (true) oder deaktivieren (false)
+
+// ============================================================================
 // Katzenbrunnen Parameter
 // ============================================================================
 #define SERVO_OPEN_ANGLE_US      120    // Servo-Position für geöffneten Wasserhahn (Pulsweite in µs)

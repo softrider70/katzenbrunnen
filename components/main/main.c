@@ -470,9 +470,11 @@ static void control_task(void *pvParameters)
         } else {
             if (motion) {
                 last_motion_open = now;
+                ESP_LOGD(TAG, "HIGH-Signal während offen -> Timeout zurückgesetzt");
             }
-            if ((now - last_motion_open) >= (g_servo_config.motion_timeout_ms * 1000ULL)) {
-                ESP_LOGI(TAG, "Timeout ohne Bewegung -> Wasserhahn schließen");
+            uint64_t time_since_motion = (now - last_motion_open) / 1000ULL;
+            if (time_since_motion >= g_servo_config.motion_timeout_ms) {
+                ESP_LOGI(TAG, "Timeout ohne Bewegung (%llu ms) -> Wasserhahn schließen", (unsigned long long)time_since_motion);
                 close_water_valve();
                 cooldown_until = now + (PIR_COOLDOWN_MS * 1000ULL);
             }

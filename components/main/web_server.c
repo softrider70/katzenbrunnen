@@ -337,6 +337,30 @@ static bool parse_json_field(const char *body, const char *key,
 }
 
 // ============================================================================
+// Hilfsfunktion: JSON-Number-Feld parsen ("key":123)
+// ============================================================================
+static bool parse_json_number(const char *body, const char *key, uint32_t *out)
+{
+    char pattern[40];
+    snprintf(pattern, sizeof(pattern), "\"%s\":", key);
+    const char *start = strstr(body, pattern);
+    if (start == NULL) {
+        return false;
+    }
+    start += strlen(pattern);
+    // Überspringe Whitespace
+    while (*start == ' ' || *start == '\t') start++;
+    // Parse Zahl
+    char *endptr;
+    *out = (uint32_t)strtoul(start, &endptr, 10);
+    // Prüfe ob Parsing erfolgreich war
+    if (endptr == start) {
+        return false;
+    }
+    return true;
+}
+
+// ============================================================================
 // API Handler: POST /api/wifi - WiFi-Credentials setzen
 // ============================================================================
 static esp_err_t wifi_config_handler(httpd_req_t *req)
@@ -417,26 +441,26 @@ static esp_err_t servo_config_post_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    // JSON-Felder parsen
-    if (!parse_json_field(body, "close_timeout_s", (char*)&close_timeout_s, sizeof(close_timeout_s)) ||
+    // JSON-Felder parsen (mit parse_json_number für numerische Werte)
+    if (!parse_json_number(body, "close_timeout_s", &close_timeout_s) ||
         close_timeout_s < 1 || close_timeout_s > 30) {
         send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger close_timeout_s (1-30s)\"}");
         return ESP_OK;
     }
 
-    if (!parse_json_field(body, "servo_open_us", (char*)&servo_open_us, sizeof(servo_open_us)) ||
+    if (!parse_json_number(body, "servo_open_us", &servo_open_us) ||
         servo_open_us < 100 || servo_open_us > 1000) {
         send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger servo_open_us (100-1000us)\"}");
         return ESP_OK;
     }
 
-    if (!parse_json_field(body, "servo_close_us", (char*)&servo_close_us, sizeof(servo_close_us)) ||
+    if (!parse_json_number(body, "servo_close_us", &servo_close_us) ||
         servo_close_us < 100 || servo_close_us > 1000) {
         send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger servo_close_us (100-1000us)\"}");
         return ESP_OK;
     }
 
-    if (!parse_json_field(body, "fet_on_time_s", (char*)&fet_on_time_s, sizeof(fet_on_time_s)) ||
+    if (!parse_json_number(body, "fet_on_time_s", &fet_on_time_s) ||
         fet_on_time_s < 1 || fet_on_time_s > 10) {
         send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger fet_on_time_s (1-10s)\"}");
         return ESP_OK;
@@ -592,17 +616,19 @@ static esp_err_t pir_events_handler(httpd_req_t *req)
             break;
         }
 
-        // Zeitstempel in lesbares Format umwandeln
-        time_t timestamp_sec = pir_events_buffer[i].timestamp_ms / 1000;
-        struct tm *tm_info = localtime(&timestamp_sec);
-        char time_str[32];
-        strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", tm_info);
+        // Zeitstempel in lesbares Format umwandeln (seit Boot in Sekunden)
+        uint64_t timestamp_sec = pir_events_buffer[i].timestamp_ms / 1000;
+        uint64_t hours = timestamp_sec / 3600;
+        uint64_t minutes = (timestamp_sec % 3600) / 60;
+        uint64_t seconds = timestamp_sec % 60;
 
         offset += snprintf(pir_json_buffer + offset, sizeof(pir_json_buffer) - offset,
-            "%s{\"timestamp_ms\":%llu,\"timestamp\":\"%s\",\"duration_ms\":%u}",
+            "%s{\"timestamp_ms\":%llu,\"timestamp\":\"%lluh %llum %llus\",\"duration_ms\":%u}",
             (i > 0) ? "," : "",
             (unsigned long long)pir_events_buffer[i].timestamp_ms,
-            time_str,
+            (unsigned long long)hours,
+            (unsigned long long)minutes,
+            (unsigned long long)seconds,
             (unsigned int)pir_events_buffer[i].duration_ms
         );
     }
@@ -638,17 +664,19 @@ static esp_err_t servo_events_handler(httpd_req_t *req)
             break;
         }
 
-        // Zeitstempel in lesbares Format umwandeln
-        time_t timestamp_sec = servo_events_buffer[i].timestamp_ms / 1000;
-        struct tm *tm_info = localtime(&timestamp_sec);
-        char time_str[32];
-        strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", tm_info);
+        // Zeitstempel in lesbares Format umwandeln (seit Boot in Sekunden)
+        uint64_t timestamp_sec = servo_events_buffer[i].timestamp_ms / 1000;
+        uint64_t hours = timestamp_sec / 3600;
+        uint64_t minutes = (timestamp_sec % 3600) / 60;
+        uint64_t seconds = timestamp_sec % 60;
 
         offset += snprintf(servo_json_buffer + offset, sizeof(servo_json_buffer) - offset,
-            "%s{\"timestamp_ms\":%llu,\"timestamp\":\"%s\",\"duration_ms\":%u}",
+            "%s{\"timestamp_ms\":%llu,\"timestamp\":\"%lluh %llum %llus\",\"duration_ms\":%u}",
             (i > 0) ? "," : "",
             (unsigned long long)servo_events_buffer[i].timestamp_ms,
-            time_str,
+            (unsigned long long)hours,
+            (unsigned long long)minutes,
+            (unsigned long long)seconds,
             (unsigned int)servo_events_buffer[i].duration_ms
         );
     }

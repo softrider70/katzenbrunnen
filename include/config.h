@@ -81,6 +81,7 @@
 #define TASK_STACK_OTA          8192    // OTA-Task Stack
 #define TASK_STACK_APP          4096    // Hauptanwendungs-Task Stack
 #define TASK_STACK_CONTROL      4096    // Steuerungs-Task Stack
+#define TASK_STACK_HEAP         2048    // Heap-Monitor-Task Stack
 
 // Task Priorities (0-24, higher = more important)
 #define TASK_PRIO_PIR           5       // PIR-Task Priorität
@@ -104,9 +105,19 @@
 #define WIFI_MAX_RETRY           3       // Maximale Verbindungsversuche vor AP-Start
 #define WIFI_AP_SSID            "katzenbrunnen_setup"
 #define WIFI_AP_PASSWORD        ""             // leer = offenes Setup-Netz (kein Passwort nötig)
-#define WIFI_AP_IP              "192.168.4.1"  // AP IP-Adresse
-#define WIFI_AP_GATEWAY         "192.168.4.1"  // AP Gateway
-#define WIFI_AP_NETMASK         "255.255.255.0"  // AP Netmask
+#define WIFI_AP_IP_STR          "192.168.4.1"  // AP IP-Adresse (String)
+#define WIFI_AP_IP              "192.168.4.1"  // AP IP-Adresse (für DNS/Web-Server)
+#define WIFI_AP_GATEWAY_STR     "192.168.4.1"  // AP Gateway (String)
+#define WIFI_AP_NETMASK_STR     "255.255.255.0"  // AP Netmask (String)
+// Numerische Werte für IP4_ADDR Makro
+#define WIFI_AP_IP_OCTET1       192
+#define WIFI_AP_IP_OCTET2       168
+#define WIFI_AP_IP_OCTET3       4
+#define WIFI_AP_IP_OCTET4       1
+#define WIFI_AP_NETMASK_OCTET1  255
+#define WIFI_AP_NETMASK_OCTET2  255
+#define WIFI_AP_NETMASK_OCTET3  255
+#define WIFI_AP_NETMASK_OCTET4  0
 #define WIFI_HOSTNAME           "katzenbrunnen"  // mDNS Hostname
 #define WIFI_TX_POWER           14  // WiFi Sendeleistung in dBm (0-20, Standard: 14 für 7m Entfernung)
 #define WIFI_TX_POWER_HW_MAX    84  // TX-Power Hardware Limit (ESP32-S3)
@@ -125,6 +136,7 @@
 #define OTA_URL_MAX_LEN         256
 #define OTA_TIMEOUT_MS          30000   // OTA Timeout
 #define OTA_HEALTH_CHECK_DELAY_MS 60000  // Health-Check nach OTA (60s)
+#define OTA_HEALTH_CHECK_ENABLED true   // Automatischer Rollback bei fehlerhaftem Boot
 
 // ============================================================================
 // Stack Monitoring Configuration

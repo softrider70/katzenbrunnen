@@ -86,7 +86,7 @@ esp_err_t heap_monitor_start_task(void)
     BaseType_t ret = xTaskCreatePinnedToCore(
         heap_monitor_task,
         "heap_monitor",
-        2048,
+        TASK_STACK_HEAP,
         NULL,
         2,
         NULL,

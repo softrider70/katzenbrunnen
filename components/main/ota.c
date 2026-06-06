@@ -6,6 +6,8 @@
 #include "esp_ota_ops.h"
 #include "esp_app_desc.h"
 #include "esp_timer.h"
+#include "esp_http_client.h"
+#include "esp_https_ota.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -14,7 +16,7 @@
 
 static const char *TAG = "ota";
 
-// OTA-State (stubs für ESP-IDF 6.1 Kompatibilität)
+// OTA-State
 typedef struct {
     bool in_progress;
     bool last_result_ok;
@@ -48,24 +50,129 @@ static ota_state_t ota_state = {
 static SemaphoreHandle_t ota_mutex = NULL;
 static TaskHandle_t ota_task_handle = NULL;
 
-// OTA-Update Task (Stub - ESP-IDF 6.1 API benötigt Rewrite)
+// OTA-Update Task (ESP-IDF 6.1 API)
 static void ota_update_task(void *pvParameters)
 {
     char *url = (char *)pvParameters;
-    ESP_LOGW(TAG, "OTA ist in ESP-IDF 6.1 deaktiviert (API-Änderungen). URL: %s", url);
+    esp_err_t ret = ESP_OK;
+    
+    ESP_LOGI(TAG, "OTA-Update gestartet: %s", url);
     
     xSemaphoreTake(ota_mutex, portMAX_DELAY);
-    ota_state.in_progress = false;
-    ota_state.last_result_ok = false;
-    strncpy(ota_state.phase, "DISABLED", sizeof(ota_state.phase) - 1);
-    strncpy(ota_state.message, "OTA in ESP-IDF 6.1 deaktiviert", sizeof(ota_state.message) - 1);
-    strncpy(ota_state.last_error, "ESP_ERR_NOT_SUPPORTED", sizeof(ota_state.last_error) - 1);
-    ota_state.last_end_ms = (uint64_t)(esp_timer_get_time() / 1000);
+    strncpy(ota_state.phase, "CONNECTING", sizeof(ota_state.phase) - 1);
+    strncpy(ota_state.message, "Verbinde mit Server...", sizeof(ota_state.message) - 1);
     xSemaphoreGive(ota_mutex);
     
-    free(url);
-    ota_task_handle = NULL;
-    vTaskDelete(NULL);
+    // HTTP-Client Konfiguration
+    esp_http_client_config_t http_config = {
+        .url = url,
+        .timeout_ms = OTA_TIMEOUT_MS,
+        .keep_alive_enable = true,
+        .buffer_size = 1024,
+        .buffer_size_tx = 1024,
+    };
+    
+    // HTTPS OTA Konfiguration
+    esp_https_ota_config_t ota_config = {
+        .http_config = &http_config,
+    };
+    
+    // OTA beginnen
+    esp_https_ota_handle_t https_ota_handle = NULL;
+    ret = esp_https_ota_begin(&ota_config, &https_ota_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "ESP HTTPS OTA Begin fehlgeschlagen: %s", esp_err_to_name(ret));
+        xSemaphoreTake(ota_mutex, portMAX_DELAY);
+        ota_state.in_progress = false;
+        ota_state.last_result_ok = false;
+        strncpy(ota_state.phase, "FAILED", sizeof(ota_state.phase) - 1);
+        snprintf(ota_state.message, sizeof(ota_state.message), "OTA Begin fehlgeschlagen: %s", esp_err_to_name(ret));
+        strncpy(ota_state.last_error, esp_err_to_name(ret), sizeof(ota_state.last_error) - 1);
+        ota_state.last_end_ms = (uint64_t)(esp_timer_get_time() / 1000);
+        xSemaphoreGive(ota_mutex);
+        error_log_add(ERR_OTA_FAILURE, "ota_task", 2);
+        free(url);
+        ota_task_handle = NULL;
+        vTaskDelete(NULL);
+    }
+    
+    xSemaphoreTake(ota_mutex, portMAX_DELAY);
+    strncpy(ota_state.phase, "DOWNLOADING", sizeof(ota_state.phase) - 1);
+    strncpy(ota_state.message, "Lade Firmware...", sizeof(ota_state.message) - 1);
+    xSemaphoreGive(ota_mutex);
+    
+    // OTA durchführen
+    ret = esp_https_ota_perform(https_ota_handle);
+    
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "ESP HTTPS OTA Perform fehlgeschlagen: %s", esp_err_to_name(ret));
+        esp_https_ota_abort(https_ota_handle);
+        xSemaphoreTake(ota_mutex, portMAX_DELAY);
+        ota_state.in_progress = false;
+        ota_state.last_result_ok = false;
+        strncpy(ota_state.phase, "FAILED", sizeof(ota_state.phase) - 1);
+        snprintf(ota_state.message, sizeof(ota_state.message), "OTA Download fehlgeschlagen: %s", esp_err_to_name(ret));
+        strncpy(ota_state.last_error, esp_err_to_name(ret), sizeof(ota_state.last_error) - 1);
+        ota_state.last_end_ms = (uint64_t)(esp_timer_get_time() / 1000);
+        xSemaphoreGive(ota_mutex);
+        error_log_add(ERR_OTA_FAILURE, "ota_task", 2);
+        free(url);
+        ota_task_handle = NULL;
+        vTaskDelete(NULL);
+    }
+    
+    // Prüfen ob alle Daten empfangen wurden
+    if (esp_https_ota_is_complete_data_received(https_ota_handle) != true) {
+        ESP_LOGE(TAG, "Komplette Daten wurden nicht empfangen");
+        esp_https_ota_abort(https_ota_handle);
+        xSemaphoreTake(ota_mutex, portMAX_DELAY);
+        ota_state.in_progress = false;
+        ota_state.last_result_ok = false;
+        strncpy(ota_state.phase, "FAILED", sizeof(ota_state.phase) - 1);
+        strncpy(ota_state.message, "Unvollständige Daten empfangen", sizeof(ota_state.message) - 1);
+        strncpy(ota_state.last_error, "incomplete-data", sizeof(ota_state.last_error) - 1);
+        ota_state.last_end_ms = (uint64_t)(esp_timer_get_time() / 1000);
+        xSemaphoreGive(ota_mutex);
+        error_log_add(ERR_OTA_FAILURE, "ota_task", 2);
+        free(url);
+        ota_task_handle = NULL;
+        vTaskDelete(NULL);
+    }
+    
+    // OTA abschließen
+    esp_err_t ota_finish_err = esp_https_ota_finish(https_ota_handle);
+    if (ret == ESP_OK && ota_finish_err == ESP_OK) {
+        ESP_LOGI(TAG, "OTA erfolgreich abgeschlossen. Neustart...");
+        xSemaphoreTake(ota_mutex, portMAX_DELAY);
+        ota_state.in_progress = false;
+        ota_state.last_result_ok = true;
+        strncpy(ota_state.phase, "SUCCESS", sizeof(ota_state.phase) - 1);
+        strncpy(ota_state.message, "OTA erfolgreich, Neustart...", sizeof(ota_state.message) - 1);
+        ota_state.last_error[0] = '\0';
+        ota_state.last_end_ms = (uint64_t)(esp_timer_get_time() / 1000);
+        xSemaphoreGive(ota_mutex);
+        
+        free(url);
+        ota_task_handle = NULL;
+        
+        // Kurze Verzögerung für Logging
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        esp_restart();
+    } else {
+        ESP_LOGE(TAG, "OTA Finish fehlgeschlagen: %s", esp_err_to_name(ota_finish_err));
+        xSemaphoreTake(ota_mutex, portMAX_DELAY);
+        ota_state.in_progress = false;
+        ota_state.last_result_ok = false;
+        strncpy(ota_state.phase, "FAILED", sizeof(ota_state.phase) - 1);
+        snprintf(ota_state.message, sizeof(ota_state.message), "OTA Finish fehlgeschlagen: %s", esp_err_to_name(ota_finish_err));
+        strncpy(ota_state.last_error, esp_err_to_name(ota_finish_err), sizeof(ota_state.last_error) - 1);
+        ota_state.last_end_ms = (uint64_t)(esp_timer_get_time() / 1000);
+        xSemaphoreGive(ota_mutex);
+        error_log_add(ERR_OTA_FAILURE, "ota_task", 2);
+        free(url);
+        ota_task_handle = NULL;
+        vTaskDelete(NULL);
+    }
 }
 
 esp_err_t ota_init(void)
@@ -79,7 +186,7 @@ esp_err_t ota_init(void)
     ota_state.boot_time_ms = (uint64_t)(esp_timer_get_time() / 1000);
     snprintf(ota_state.current_version, sizeof(ota_state.current_version), "%s", APP_VERSION);
     
-    ESP_LOGI(TAG, "OTA-Modul initialisiert (Version: %s) - DEAKTIVIERT für ESP-IDF 6.1", APP_VERSION);
+    ESP_LOGI(TAG, "OTA-Modul initialisiert (Version: %s)", APP_VERSION);
     return ESP_OK;
 }
 
@@ -162,8 +269,20 @@ esp_err_t ota_get_status(bool *in_progress, bool *last_result_ok, char *phase, c
 
 esp_err_t ota_rollback(void)
 {
-    ESP_LOGW(TAG, "OTA Rollback ist in ESP-IDF 6.1 deaktiviert");
-    return ESP_ERR_NOT_SUPPORTED;
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    esp_ota_img_states_t ota_state;
+    
+    if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK) {
+        if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
+            // Rollback durchführen
+            ESP_LOGI(TAG, "Führe Rollback durch");
+            esp_ota_mark_app_invalid_rollback_and_reboot();
+            return ESP_OK;
+        }
+    }
+    
+    ESP_LOGW(TAG, "Kein Rollback möglich (kein pending verify state)");
+    return ESP_ERR_INVALID_STATE;
 }
 
 void ota_deinit(void)

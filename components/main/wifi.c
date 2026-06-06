@@ -212,10 +212,9 @@ esp_err_t wifi_init(void)
 
     // AP IP-Adresse konfigurieren
     esp_netif_ip_info_t ap_ip_info;
-    IP4_ADDR(&ap_ip_info.ip, 192, 168, 4, 1);
-    IP4_ADDR(&ap_ip_info.gw, 192, 168, 4, 1);
-    IP4_ADDR(&ap_ip_info.netmask, 255, 255, 255, 0);
-    // TODO: Magic Numbers durch config.h Defines ersetzen (WIFI_AP_IP, WIFI_AP_GATEWAY, WIFI_AP_NETMASK)
+    IP4_ADDR(&ap_ip_info.ip, WIFI_AP_IP_OCTET1, WIFI_AP_IP_OCTET2, WIFI_AP_IP_OCTET3, WIFI_AP_IP_OCTET4);
+    IP4_ADDR(&ap_ip_info.gw, WIFI_AP_IP_OCTET1, WIFI_AP_IP_OCTET2, WIFI_AP_IP_OCTET3, WIFI_AP_IP_OCTET4);
+    IP4_ADDR(&ap_ip_info.netmask, WIFI_AP_NETMASK_OCTET1, WIFI_AP_NETMASK_OCTET2, WIFI_AP_NETMASK_OCTET3, WIFI_AP_NETMASK_OCTET4);
     ret = esp_netif_dhcps_stop(ap_netif);
     if (ret != ESP_OK && ret != ESP_ERR_ESP_NETIF_DHCP_ALREADY_STOPPED) {
         ESP_LOGE(TAG, "AP DHCP-Stop fehlgeschlagen: %s", esp_err_to_name(ret));

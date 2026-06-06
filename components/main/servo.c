@@ -114,6 +114,21 @@ void servo_calibrate(void)
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 
     ESP_LOGI(TAG, "Servo-Kalibrierung abgeschlossen");
+
+    // Telegram-Startup-Nachricht senden
+    if (telegram_is_configured()) {
+        char msg[256];
+        snprintf(msg, sizeof(msg),
+            "🚀 Katzenbrunnen gestartet\n"
+            "✅ Kalibrierung abgeschlossen\n"
+            "📊 Freier Heap: %lu KB\n"
+            "⚙️ Servo: %lu/%lu µs",
+            (unsigned long)(esp_get_free_heap_size() / 1024),
+            (unsigned long)g_servo_config.servo_open_us,
+            (unsigned long)g_servo_config.servo_close_us
+        );
+        telegram_send_message(msg);
+    }
 }
 
 void servo_set_position(uint32_t pulse_us)

@@ -49,6 +49,8 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - **Schaltung:** Source → GND, Drain → Servo-GND, Gate → GPIO5
 - **Funktion:** GPIO5 HIGH schaltet Servo ein, GPIO5 LOW schaltet Servo aus
 - **Vorteil:** Servo wird komplett stromlos geschaltet, keine Standby-Verluste
+- **Stromspar-Modus:** FET schaltet nach konfigurierbarer Zeit (Standard 5s) automatisch ab
+- **Servo-Haltefunktion:** Servo hält Position ohne Strom (keine Nachregelung nötig)
 
 ### Benötigte Komponenten:
 - ESP32-S3 Entwicklungsboard
@@ -82,6 +84,11 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - **Spannungsanzeige** (Aktuelle Spannung, Prozent, Status)
 - **OTA-Steuerbereich** für Firmware-Updates (ESP-IDF 6.1: aktuell deaktiviert)
 - **WiFi-Konfiguration** für Netzwerk-Setup
+- **Servo-Konfiguration** (neu):
+  - Timer-Dauer (10-300 Sekunden) - Zeit ohne Bewegung vor Schließen
+  - Servo-Position offen (100-1000µs) - Pulsweite für geöffneten Wasserhahn
+  - Servo-Position geschlossen (100-1000µs) - Pulsweite für geschlossenen Wasserhahn
+  - FET-An-Zeit (1-10 Sekunden) - Zeit für Servo-Stellzeit vor Stromabschaltung
 - **Error-Log-Anzeige** mit farbcodierter Schweregrad-Indikator
 
 ### WiFi-Einrichtung (Captive Portal):

@@ -5,7 +5,7 @@
 body{font-family:Arial,sans-serif;background:linear-gradient(180deg,#4ade80 0%,#22c55e 100%);margin:0;padding:10px}
 .container{max-width:460px;margin:0 auto;background:white;padding:12px;border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,0.18)}
 h1{color:#1f2937;margin:0;font-size:19px}
-.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:12px 0;border-bottom:2px solid #e5e7eb}
+.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:12px 0;border-bottom:2px solid #e5e7eb}
 .tab-btn{min-width:0;padding:9px 6px;border:none;background:#eef2f7;cursor:pointer;font-weight:bold;border-radius:8px 8px 0 0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tab-btn.active{background:#22c55e;color:white}
 .tab-content{display:none;padding:10px 0 0 0}
@@ -36,6 +36,7 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <button class="tab-btn active" onclick="showTab('dashboard')">Dashboard</button>
 <button class="tab-btn" onclick="showTab('logs')">Log-FIFO</button>
 <button class="tab-btn" onclick="showTab('codes')">Fehlercodes</button>
+<button class="tab-btn" onclick="showTab('servo')">Servo</button>
 <button class="tab-btn" onclick="showTab('wifi')">WiFi Setup</button>
 <button class="tab-btn" onclick="showTab('ota')">OTA</button>
 </div>
@@ -100,6 +101,32 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <div id="msg-codes" class="msg"></div>
 </div>
 
+<!-- SERVO CONFIG TAB -->
+<div class="tab-content" id="servo">
+<p style="font-size:12px;margin:0 0 10px 0"><b>Servo-Konfiguration:</b></p>
+<div style="margin:10px 0">
+<label style="font-size:12px;font-weight:bold">Timer-Dauer (Sekunden, 10-300s):</label>
+<input type="number" id="motion-timeout-s" min="10" max="300" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
+</div>
+<div style="margin:10px 0">
+<label style="font-size:12px;font-weight:bold">Servo-Position offen (µs, 100-1000µs):</label>
+<input type="number" id="servo-open-us" min="100" max="1000" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
+</div>
+<div style="margin:10px 0">
+<label style="font-size:12px;font-weight:bold">Servo-Position geschlossen (µs, 100-1000µs):</label>
+<input type="number" id="servo-close-us" min="100" max="1000" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
+</div>
+<div style="margin:10px 0">
+<label style="font-size:12px;font-weight:bold">FET-An-Zeit (Sekunden, 1-10s):</label>
+<input type="number" id="fet-on-time-s" min="1" max="10" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
+</div>
+<div class="buttons">
+<button class="btn-primary" onclick="saveServoConfig()">Speichern</button>
+<button class="btn-secondary" onclick="loadServoConfig()">Aktualisieren</button>
+</div>
+<div id="msg-servo" class="msg"></div>
+</div>
+
 <!-- WIFI SETUP TAB -->
 <div class="tab-content" id="wifi">
 <p style="font-size:12px;margin:0 0 10px 0"><b>WiFi-Einrichtung:</b></p>
@@ -156,6 +183,7 @@ if(tabId==='logs')loadLogs();
 if(tabId==='ota')checkOtaStatus();
 if(tabId==='codes')loadCodes();
 if(tabId==='wifi')loadWifiConfig();
+if(tabId==='servo')loadServoConfig();
 }
 function showMsg(tabId,text,isError){
 const msgEl=document.getElementById('msg-'+tabId);
@@ -337,6 +365,46 @@ fetch('/api/ota/rollback',{method:'POST'}).then(r=>r.json()).then(d=>{
 showMsg('ota',d.message,d.status!=='OK');
 checkOtaStatus();
 }).catch(e=>showMsg('ota','Fehler: '+e.message,true));
+}
+function loadServoConfig(){
+fetch('/api/servo_config').then(r=>r.json()).then(d=>{
+document.getElementById('motion-timeout-s').value=d.motion_timeout_s;
+document.getElementById('servo-open-us').value=d.servo_open_us;
+document.getElementById('servo-close-us').value=d.servo_close_us;
+document.getElementById('fet-on-time-s').value=d.fet_on_time_s;
+showMsg('servo','Konfiguration geladen',false);
+}).catch(e=>showMsg('servo','Fehler: '+e.message,true));
+}
+function saveServoConfig(){
+const motionTimeoutS=parseInt(document.getElementById('motion-timeout-s').value);
+const servoOpenUs=parseInt(document.getElementById('servo-open-us').value);
+const servoCloseUs=parseInt(document.getElementById('servo-close-us').value);
+const fetOnTimeS=parseInt(document.getElementById('fet-on-time-s').value);
+if(motionTimeoutS<10||motionTimeoutS>300){
+showMsg('servo','Timer-Dauer muss 10-300s sein',true);
+return;
+}
+if(servoOpenUs<100||servoOpenUs>1000){
+showMsg('servo','Servo-Position offen muss 100-1000µs sein',true);
+return;
+}
+if(servoCloseUs<100||servoCloseUs>1000){
+showMsg('servo','Servo-Position geschlossen muss 100-1000µs sein',true);
+return;
+}
+if(fetOnTimeS<1||fetOnTimeS>10){
+showMsg('servo','FET-An-Zeit muss 1-10s sein',true);
+return;
+}
+const body=JSON.stringify({
+motion_timeout_s:motionTimeoutS,
+servo_open_us:servoOpenUs,
+servo_close_us:servoCloseUs,
+fet_on_time_s:fetOnTimeS
+});
+fetch('/api/servo_config',{method:'POST',headers:{'Content-Type':'application/json'},body:body}).then(r=>r.json()).then(d=>{
+showMsg('servo',d.message,d.status!=='OK');
+}).catch(e=>showMsg('servo','Fehler: '+e.message,true));
 }
 updateDashboard();
 </script>

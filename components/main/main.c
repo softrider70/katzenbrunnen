@@ -33,6 +33,14 @@ static const char *TAG = "katzenbrunnen";
 // NVS handle für persistenten Speicher
 nvs_handle_t g_nvs_handle;
 
+// Servo Runtime-Konfiguration
+servo_config_t g_servo_config = {
+    .motion_timeout_ms = MOTION_TIMEOUT_MS,
+    .servo_open_us = SERVO_OPEN_ANGLE_US,
+    .servo_close_us = SERVO_CLOSE_ANGLE_US,
+    .fet_on_time_ms = 5000
+};
+
 // SNTP Zeit-Synchronisation
 static bool sntp_initialized = false;
 
@@ -52,6 +60,92 @@ static void initialize_sntp(void)
     sntp_set_time_sync_notification_cb(time_sync_notification_cb);
     esp_sntp_init();
     sntp_initialized = true;
+}
+
+/**
+ * @brief Servo-Konfiguration aus NVS laden
+ */
+static void load_servo_config_from_nvs(void)
+{
+    esp_err_t ret;
+    uint32_t value;
+
+    // motion_timeout_ms
+    ret = nvs_get_u32(g_nvs_handle, NVS_KEY_MOTION_TIMEOUT_MS, &value);
+    if (ret == ESP_OK) {
+        g_servo_config.motion_timeout_ms = value;
+        ESP_LOGI(TAG, "Motion Timeout aus NVS: %lu ms", value);
+    } else {
+        ESP_LOGI(TAG, "Motion Timeout nicht in NVS, verwende Default: %lu ms", g_servo_config.motion_timeout_ms);
+    }
+
+    // servo_open_us
+    ret = nvs_get_u32(g_nvs_handle, NVS_KEY_SERVO_OPEN_US, &value);
+    if (ret == ESP_OK) {
+        g_servo_config.servo_open_us = value;
+        ESP_LOGI(TAG, "Servo Open aus NVS: %lu us", value);
+    } else {
+        ESP_LOGI(TAG, "Servo Open nicht in NVS, verwende Default: %lu us", g_servo_config.servo_open_us);
+    }
+
+    // servo_close_us
+    ret = nvs_get_u32(g_nvs_handle, NVS_KEY_SERVO_CLOSE_US, &value);
+    if (ret == ESP_OK) {
+        g_servo_config.servo_close_us = value;
+        ESP_LOGI(TAG, "Servo Close aus NVS: %lu us", value);
+    } else {
+        ESP_LOGI(TAG, "Servo Close nicht in NVS, verwende Default: %lu us", g_servo_config.servo_close_us);
+    }
+
+    // fet_on_time_ms
+    ret = nvs_get_u32(g_nvs_handle, NVS_KEY_FET_ON_TIME_MS, &value);
+    if (ret == ESP_OK) {
+        g_servo_config.fet_on_time_ms = value;
+        ESP_LOGI(TAG, "FET On Time aus NVS: %lu ms", value);
+    } else {
+        ESP_LOGI(TAG, "FET On Time nicht in NVS, verwende Default: %lu ms", g_servo_config.fet_on_time_ms);
+    }
+}
+
+/**
+ * @brief Servo-Konfiguration in NVS speichern
+ */
+esp_err_t save_servo_config_to_nvs(void)
+{
+    esp_err_t ret;
+
+    ret = nvs_set_u32(g_nvs_handle, NVS_KEY_MOTION_TIMEOUT_MS, g_servo_config.motion_timeout_ms);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Motion Timeout speichern fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = nvs_set_u32(g_nvs_handle, NVS_KEY_SERVO_OPEN_US, g_servo_config.servo_open_us);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Servo Open speichern fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = nvs_set_u32(g_nvs_handle, NVS_KEY_SERVO_CLOSE_US, g_servo_config.servo_close_us);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Servo Close speichern fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = nvs_set_u32(g_nvs_handle, NVS_KEY_FET_ON_TIME_MS, g_servo_config.fet_on_time_ms);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "FET On Time speichern fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = nvs_commit(g_nvs_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "NVS Commit fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "Servo-Konfiguration in NVS gespeichert");
+    return ESP_OK;
 }
 
 // WiFi-Event-Handler für SNTP-Initialisierung nach Verbindung
@@ -218,7 +312,10 @@ static esp_err_t init_nvs(void)
         ESP_LOGE(TAG, "Failed to open NVS handle: %s", esp_err_to_name(ret));
         return ret;
     }
-    
+
+    // Servo-Konfiguration aus NVS laden
+    load_servo_config_from_nvs();
+
     // Aktivierungszykler aus NVS laden
     ret = nvs_get_u32(g_nvs_handle, NVS_ACTIVATION_COUNT_KEY, &activation_count);
     if (ret != ESP_OK) {
@@ -341,7 +438,7 @@ static void control_task(void *pvParameters)
             if (motion) {
                 last_motion_open = now;
             }
-            if ((now - last_motion_open) >= (MOTION_TIMEOUT_MS * 1000ULL)) {
+            if ((now - last_motion_open) >= (g_servo_config.motion_timeout_ms * 1000ULL)) {
                 ESP_LOGI(TAG, "Timeout ohne Bewegung -> Wasserhahn schließen");
                 close_water_valve();
                 cooldown_until = now + (PIR_COOLDOWN_MS * 1000ULL);

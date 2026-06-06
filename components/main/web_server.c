@@ -385,6 +385,91 @@ static esp_err_t wifi_config_handler(httpd_req_t *req)
 }
 
 // ============================================================================
+// API Handler: GET /api/servo_config - Servo-Konfiguration laden
+// ============================================================================
+static esp_err_t servo_config_get_handler(httpd_req_t *req)
+{
+    char json_response[256];
+    snprintf(json_response, sizeof(json_response),
+        "{"
+        "\"status\":\"OK\","
+        "\"motion_timeout_s\":%lu,"
+        "\"servo_open_us\":%lu,"
+        "\"servo_close_us\":%lu,"
+        "\"fet_on_time_s\":%lu"
+        "}",
+        g_servo_config.motion_timeout_ms / 1000,
+        g_servo_config.servo_open_us,
+        g_servo_config.servo_close_us,
+        g_servo_config.fet_on_time_ms / 1000
+    );
+    send_json_response(req, json_response);
+    return ESP_OK;
+}
+
+// ============================================================================
+// API Handler: POST /api/servo_config - Servo-Konfiguration speichern
+// ============================================================================
+static esp_err_t servo_config_post_handler(httpd_req_t *req)
+{
+    char body[256] = {0};
+    uint32_t motion_timeout_s, servo_open_us, servo_close_us, fet_on_time_s;
+
+    int total_len = req->content_len;
+    if (total_len <= 0 || total_len >= (int)sizeof(body)) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Invalid body\"}");
+        return ESP_OK;
+    }
+
+    int received = httpd_req_recv(req, body, total_len);
+    if (received <= 0) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to read body\"}");
+        return ESP_OK;
+    }
+
+    // JSON-Felder parsen
+    if (!parse_json_field(body, "motion_timeout_s", (char*)&motion_timeout_s, sizeof(motion_timeout_s)) ||
+        motion_timeout_s < 10 || motion_timeout_s > 300) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger motion_timeout_s (10-300s)\"}");
+        return ESP_OK;
+    }
+
+    if (!parse_json_field(body, "servo_open_us", (char*)&servo_open_us, sizeof(servo_open_us)) ||
+        servo_open_us < 100 || servo_open_us > 1000) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger servo_open_us (100-1000us)\"}");
+        return ESP_OK;
+    }
+
+    if (!parse_json_field(body, "servo_close_us", (char*)&servo_close_us, sizeof(servo_close_us)) ||
+        servo_close_us < 100 || servo_close_us > 1000) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger servo_close_us (100-1000us)\"}");
+        return ESP_OK;
+    }
+
+    if (!parse_json_field(body, "fet_on_time_s", (char*)&fet_on_time_s, sizeof(fet_on_time_s)) ||
+        fet_on_time_s < 1 || fet_on_time_s > 10) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Ungueltiger fet_on_time_s (1-10s)\"}");
+        return ESP_OK;
+    }
+
+    // Werte in globale Konfiguration übernehmen
+    g_servo_config.motion_timeout_ms = motion_timeout_s * 1000;
+    g_servo_config.servo_open_us = servo_open_us;
+    g_servo_config.servo_close_us = servo_close_us;
+    g_servo_config.fet_on_time_ms = fet_on_time_s * 1000;
+
+    // In NVS speichern
+    esp_err_t ret = save_servo_config_to_nvs();
+    if (ret != ESP_OK) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"NVS-Speichern fehlgeschlagen\"}");
+        return ESP_OK;
+    }
+
+    send_json_response(req, "{\"status\":\"OK\",\"message\":\"Servo-Konfiguration gespeichert\"}");
+    return ESP_OK;
+}
+
+// ============================================================================
 // API Handler: POST /api/wifi/reconnect - Verbindung neu aufbauen
 // ============================================================================
 static esp_err_t wifi_reconnect_handler(httpd_req_t *req)
@@ -660,6 +745,20 @@ static httpd_uri_t wifi_config_uri = {
     .user_ctx = NULL
 };
 
+static httpd_uri_t servo_config_get_uri = {
+    .uri = "/api/servo_config",
+    .method = HTTP_GET,
+    .handler = servo_config_get_handler,
+    .user_ctx = NULL
+};
+
+static httpd_uri_t servo_config_post_uri = {
+    .uri = "/api/servo_config",
+    .method = HTTP_POST,
+    .handler = servo_config_post_handler,
+    .user_ctx = NULL
+};
+
 static httpd_uri_t wifi_reconnect_uri = {
     .uri = "/api/wifi/reconnect",
     .method = HTTP_POST,
@@ -756,6 +855,8 @@ esp_err_t web_server_init(void)
     httpd_register_uri_handler(server, &ota_start_uri);
     httpd_register_uri_handler(server, &ota_rollback_uri);
     httpd_register_uri_handler(server, &wifi_config_uri);
+    httpd_register_uri_handler(server, &servo_config_get_uri);
+    httpd_register_uri_handler(server, &servo_config_post_uri);
     httpd_register_uri_handler(server, &wifi_reconnect_uri);
     httpd_register_uri_handler(server, &wifi_reset_uri);
     httpd_register_uri_handler(server, &system_reset_uri);

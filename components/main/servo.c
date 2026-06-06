@@ -84,9 +84,9 @@ esp_err_t servo_init(void)
 
     // FET kurz einschalten für Initialisierungs-Position
     gpio_set_level(GPIO_SERVO_ENABLE, 1);
-    vTaskDelay(pdMS_TO_TICKS(500));
-    servo_set_position(SERVO_CLOSE_ANGLE_US);
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
+    servo_set_position(g_servo_config.servo_close_us);
+    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 
     ESP_LOGI(TAG, "Servo-Modul initialisiert (GPIO %d, FET-Enable GPIO %d)", GPIO_SERVO, GPIO_SERVO_ENABLE);
@@ -121,7 +121,11 @@ void servo_open_valve(void)
     gpio_set_level(GPIO_SERVO_ENABLE, 1);
 
     ESP_LOGI(TAG, "Wasserhahn öffnen");
-    servo_set_position(SERVO_OPEN_ANGLE_US);
+    servo_set_position(g_servo_config.servo_open_us);
+
+    // FET nach konfigurierbarer Zeit ausschalten (Strom sparen)
+    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
+    gpio_set_level(GPIO_SERVO_ENABLE, 0);
 }
 
 void servo_close_valve(void)
@@ -157,10 +161,10 @@ void servo_close_valve(void)
     }
 
     ESP_LOGI(TAG, "Wasserhahn schließen (Dauer: %llu ms)", (unsigned long long)duration_ms);
-    servo_set_position(SERVO_CLOSE_ANGLE_US);
+    servo_set_position(g_servo_config.servo_close_us);
 
-    // 5 Sekunden Verzögerung für Servo-Stellzeit (Servo hält Position ohne Strom)
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    // FET nach konfigurierbarer Zeit ausschalten (Strom sparen)
+    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
 
     // FET ausschalten (Servo-Stromversorgung deaktivieren)
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
@@ -184,9 +188,9 @@ void servo_emergency_close(void)
 
     // FET einschalten für Emergency-Schließen
     gpio_set_level(GPIO_SERVO_ENABLE, 1);
-    vTaskDelay(pdMS_TO_TICKS(500));
-    servo_set_position(SERVO_CLOSE_ANGLE_US);
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
+    servo_set_position(g_servo_config.servo_close_us);
+    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 
     ESP_LOGE(TAG, "EMERGENCY: Wasserhahn geschlossen");

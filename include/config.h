@@ -15,8 +15,8 @@
 // ============================================================================
 // Katzenbrunnen Parameter
 // ============================================================================
-#define SERVO_OPEN_ANGLE_US      250    // Servo-Position für geöffneten Wasserhahn (Pulsweite in µs)
-#define SERVO_CLOSE_ANGLE_US     750    // Servo-Position für geschlossenen Wasserhahn (Pulsweite in µs)
+#define SERVO_OPEN_ANGLE_US      170    // Servo-Position für geöffneten Wasserhahn (Pulsweite in µs)
+#define SERVO_CLOSE_ANGLE_US     780    // Servo-Position für geschlossenen Wasserhahn (Pulsweite in µs)
 #define CLOSE_TIMEOUT_MS         8000   // Timeout ohne HIGH-Signal vor Schließen (ms) - Default 8s
 
 // ============================================================================

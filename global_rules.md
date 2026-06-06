@@ -81,3 +81,10 @@ Bei "build" Kommando immer das **projektspezifische Build-Skript** verwenden (z.
 
 ## 7. Webanfragen
 - Webanfragen zuerst über Context7 (mcp0_query-docs) statt search_web
+
+## 8. Datei-Codierung (BOM/Encoding)
+- **PowerShell-Skripte (.ps1):** UTF-8 ohne BOM oder ASCII verwenden
+- **Keine Unicode-Symbole** in Skripten (z.B. ✓, ✗, 🚀, ⚡, ✅, ❌, ⚠️)
+- **Alternativen:** [OK], [X], [INIT], [FAST], [ERROR], [WARN]
+- **Umlaute:** Für maximale Kompatibilität ae/oe/ue verwenden (optional)
+- **Grund:** PowerShell interpretiert Unicode-Symbole als Array-Index-Ausdrücke und wirft Parser-Fehler

@@ -49,7 +49,9 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 - **Schaltung:** Source → GND, Drain → Servo-GND, Gate → GPIO5
 - **Funktion:** GPIO5 HIGH schaltet Servo ein, GPIO5 LOW schaltet Servo aus
 - **Vorteil:** Servo wird komplett stromlos geschaltet, keine Standby-Verluste
-- **Stromspar-Modus:** FET schaltet nach konfigurierbarer Zeit (Standard 5s) automatisch ab
+- **FET-Stromspar-Logik:** Bei jeder Servo-Bewegung: FET an → Servo positionieren → Timeout (5s) → FET aus
+- **Servo-Initialisierung:** Beim Boot nur FET stromlos schalten, keine Servo-Bewegung
+- **Kalibrierungsfahrt:** Nach Zeitsynchronisierung: geschlossen → 1s → 100µs Richtung offen → 1s → geschlossen → FET aus
 - **Servo-Haltefunktion:** Servo hält Position ohne Strom (keine Nachregelung nötig)
 
 ### Benötigte Komponenten:
@@ -65,12 +67,17 @@ GPIO1   → ADC1_CH1 - Batteriespannungsmessung (LiPo 2S2P)
 ## Funktionsweise
 
 ### Automatischer Betrieb:
-1. **PIR-Sensor** erkennt Katze beim Betreten der Badewanne
-2. **Erfassungszeit:** Nach initialer Bewegungserkennung wird kurze Verzögerung gewartet
+1. **PIR-Sensor** erkennt Katze beim Betreten der Badewanne (pulsierendes Signal: 2.5s HIGH → 5s LOW → 2.5s HIGH)
+2. **PIR-Logik für pulsierendes Signal:**
+   - HIGH-Signal zurücksetzt "Objekt weg"-Timer
+   - LOW-Signal prüft ob 10s ohne HIGH → Objekt weg, Timer zurücksetzen
+   - Öffnen erst nach 10s HIGH-Signale (MIN_MOTION_DURATION_MS)
+   - Objekt gilt als weg wenn 10s durchgehend kein HIGH (PIR_MOTION_TIMEOUT_MS)
 3. **Servo** öffnet Wasserhahn bis zum eingestellten Winkel
 4. **Wasser fließt** solange der PIR-Sensor Bewegung feststellt
-5. **Timeout-Schutz:** Nach definierter Zeit ohne Bewegung schließt der Servo automatisch
-6. **Aktivierungszykler** werden in NVS gespeichert
+5. **Timeout-Schutz:** Nach 60s ohne Bewegung schließt der Servo automatisch (MOTION_TIMEOUT_MS)
+6. **Cooldown:** Nach Schließen 30s Cooldown vor erneutem Öffnen (PIR_COOLDOWN_MS)
+7. **Aktivierungszykler** werden in NVS gespeichert (nur vor Deep Sleep, um Watchdog-Trigger zu vermeiden)
 
 ### Manuel Betrieb:
 - **Taster** löst sofortige Wasserhahn-Öffnung aus
@@ -222,15 +229,19 @@ idf.py -p COM3 monitor
 
 Die wichtigsten Parameter können in `include/config.h` angepasst werden:
 ```c
-#define PUMP_ACTIVE_TIME_MS   10000    // Pumpenlaufzeit
-#define MIN_FILL_LEVEL_CM     5.0       // Minimaler Füllstand
-#define MAX_FILL_LEVEL_CM     30.0      // Maximaler Füllstand
-#define PIR_COOLDOWN_MS       30000     // PIR Cooldown
+// PIR-Sensor Einstellungen
+#define PIR_COOLDOWN_MS       30000     // PIR Cooldown nach Schließen
+#define MIN_MOTION_DURATION_MS 10000    // Minimale Bewegungsdauer für Aktivierung (pulsierendes Signal)
+#define PIR_MOTION_TIMEOUT_MS 10000    // Objekt weg wenn kein HIGH für 10s
+#define MOTION_TIMEOUT_MS     60000     // Timeout ohne Bewegung vor Schließen
+
 // Servo-Einstellungen
-#define SERVO_MIN_PULSE_US   500       // Minimale Pulsweite
-#define SERVO_MAX_PULSE_US   2400      // Maximale Pulsweite
-#define SERVO_NEUTRAL_US     1500      // Neutralposition
-#define SERVO_FREQUENCY_HZ   50        // PWM Frequenz
+#define SERVO_OPEN_ANGLE_US   170       // Servo-Position für geöffneten Wasserhahn (Pulsweite in µs)
+#define SERVO_CLOSE_ANGLE_US  780       // Servo-Position für geschlossenen Wasserhahn (Pulsweite in µs)
+#define SERVO_FREQUENCY_HZ    50        // PWM Frequenz
+
+// HTTPD Konfiguration
+#define HTTPD_MAX_URI_HANDLERS 32       // Maximale Anzahl HTTP-Handler (erhöht für Web-UI)
 ```
 
 ### Board Selection

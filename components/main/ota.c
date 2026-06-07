@@ -258,30 +258,35 @@ esp_err_t ota_start_task(void)
 
 esp_err_t ota_start_update(const char *url)
 {
+    ESP_LOGI(TAG, "ota_start_update aufgerufen: URL=%s", url);
     if (ota_mutex == NULL) {
+        ESP_LOGE(TAG, "ota_mutex ist NULL");
         return ESP_FAIL;
     }
-    
-    xSemaphoreTake(ota_mutex, portMAX_DELAY);
-    bool busy = ota_state.in_progress || (ota_task_handle != NULL);
-    xSemaphoreGive(ota_mutex);
-    if (busy) {
-        ESP_LOGW(TAG, "OTA bereits aktiv");
-        return ESP_ERR_INVALID_STATE;
-    }
-    
+
     if (strlen(url) >= OTA_URL_MAX_LEN) {
         ESP_LOGE(TAG, "URL zu lang");
         return ESP_ERR_INVALID_ARG;
     }
-    
+
     char *task_url = strdup(url);
     if (task_url == NULL) {
         ESP_LOGE(TAG, "Speicher-Allokation fehlgeschlagen");
         return ESP_ERR_NO_MEM;
     }
-    
+
+    ESP_LOGI(TAG, "Mutex eingenommen");
     xSemaphoreTake(ota_mutex, portMAX_DELAY);
+    bool busy = ota_state.in_progress;  // Nur in_progress prüfen (task_handle ist asynchron)
+    ESP_LOGI(TAG, "Busy-Check: in_progress=%d", ota_state.in_progress);
+    if (busy) {
+        xSemaphoreGive(ota_mutex);
+        free(task_url);
+        ESP_LOGW(TAG, "OTA bereits aktiv");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // in_progress sofort setzen (Race Condition verhindern)
     ota_state.in_progress = true;
     ota_state.last_result_ok = false;
     strncpy(ota_state.phase, "STARTING", sizeof(ota_state.phase) - 1);
@@ -289,8 +294,9 @@ esp_err_t ota_start_update(const char *url)
     ota_state.last_error[0] = '\0';
     strncpy(ota_state.url, url, sizeof(ota_state.url) - 1);
     ota_state.last_start_ms = (uint64_t)(esp_timer_get_time() / 1000);
-    xSemaphoreGive(ota_mutex);
-    
+
+    ESP_LOGI(TAG, "OTA-Task wird erstellt");
+    // Mutex erst nach Task-Create freigeben (Race Condition verhindern)
     BaseType_t ret = xTaskCreatePinnedToCore(
         ota_update_task,
         "ota_task",
@@ -300,7 +306,9 @@ esp_err_t ota_start_update(const char *url)
         &ota_task_handle,
         TASK_CORE_NETWORK
     );
-    
+
+    xSemaphoreGive(ota_mutex);
+
     if (ret != pdPASS) {
         free(task_url);
         xSemaphoreTake(ota_mutex, portMAX_DELAY);
@@ -312,7 +320,7 @@ esp_err_t ota_start_update(const char *url)
         xSemaphoreGive(ota_mutex);
         return ESP_FAIL;
     }
-    
+
     ESP_LOGI(TAG, "OTA-Update gestartet: %s", url);
     return ESP_OK;
 }

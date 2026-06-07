@@ -456,9 +456,9 @@ static void app_task(void *pvParameters)
             }
         }
         
-        // Status-Logging alle 30 Sekunden
-        static uint32_t last_status = 0;
-        uint32_t current_tick = xTaskGetTickCount() * portTICK_PERIOD_MS;
+        // Status-Logging alle 30 Sekunden (64-Bit Tick-Count für Overflow-Sicherheit)
+        static uint64_t last_status = 0;
+        uint64_t current_tick = (uint64_t)xTaskGetTickCount() * portTICK_PERIOD_MS;
         if (current_tick - last_status > DELAY_30S_MS) {
             bool valve_open = servo_is_valve_open();
             xSemaphoreTake(state_mutex, portMAX_DELAY);

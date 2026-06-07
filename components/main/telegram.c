@@ -11,6 +11,7 @@ static const char *TAG = "telegram";
 #define NVS_TELEGRAM_NAMESPACE "telegram"
 #define NVS_KEY_BOT_TOKEN "bot_token"
 #define NVS_KEY_CHAT_ID "chat_id"
+#define NVS_KEY_ENABLED "enabled"
 
 // Bot API URL
 #define TELEGRAM_API_URL "https://api.telegram.org/bot"
@@ -19,6 +20,7 @@ static const char *TAG = "telegram";
 // Lokale Speicher für Token und Chat ID
 static char g_bot_token[256] = {0};
 static char g_chat_id[64] = {0};
+static bool g_enabled = true;  // Standardmäßig aktiviert
 
 /**
  * @brief HTTP Event Handler für Telegram API
@@ -85,12 +87,27 @@ esp_err_t telegram_init(void)
         memset(g_chat_id, 0, sizeof(g_chat_id));
     }
 
+    // Enabled-Status lesen
+    uint8_t enabled = 1;
+    ret = nvs_get_u8(nvs_handle, NVS_KEY_ENABLED, &enabled);
+    if (ret == ESP_OK) {
+        g_enabled = (enabled != 0);
+        ESP_LOGI(TAG, "Telegram-Status geladen: %s", g_enabled ? "aktiviert" : "deaktiviert");
+    } else {
+        ESP_LOGI(TAG, "Enabled-Status nicht in NVS gefunden, Standard: aktiviert");
+    }
+
     nvs_close(nvs_handle);
     return ESP_OK;
 }
 
 esp_err_t telegram_send_message(const char *message)
 {
+    if (!g_enabled) {
+        ESP_LOGD(TAG, "Telegram deaktiviert - Nachricht nicht gesendet");
+        return ESP_OK;  // Kein Fehler, nur deaktiviert
+    }
+
     if (!telegram_is_configured()) {
         ESP_LOGE(TAG, "Telegram nicht konfiguriert (Token oder Chat ID fehlt)");
         return ESP_ERR_INVALID_STATE;
@@ -157,6 +174,11 @@ esp_err_t telegram_send_message(const char *message)
 
 esp_err_t telegram_send_message_markdown(const char *message)
 {
+    if (!g_enabled) {
+        ESP_LOGD(TAG, "Telegram deaktiviert - Nachricht nicht gesendet");
+        return ESP_OK;  // Kein Fehler, nur deaktiviert
+    }
+
     if (!telegram_is_configured()) {
         ESP_LOGE(TAG, "Telegram nicht konfiguriert (Token oder Chat ID fehlt)");
         return ESP_ERR_INVALID_STATE;
@@ -294,6 +316,36 @@ esp_err_t telegram_save_chat_id(const char *chat_id)
 bool telegram_is_configured(void)
 {
     return (strlen(g_bot_token) > 0 && strlen(g_chat_id) > 0);
+}
+
+esp_err_t telegram_set_enabled(bool enabled)
+{
+    esp_err_t ret;
+    nvs_handle_t nvs_handle;
+
+    ret = nvs_open(NVS_TELEGRAM_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "NVS öffnen fehlgeschlagen");
+        return ret;
+    }
+
+    uint8_t enabled_val = enabled ? 1 : 0;
+    ret = nvs_set_u8(nvs_handle, NVS_KEY_ENABLED, enabled_val);
+    if (ret == ESP_OK) {
+        ret = nvs_commit(nvs_handle);
+        if (ret == ESP_OK) {
+            g_enabled = enabled;
+            ESP_LOGI(TAG, "Telegram-Status gespeichert: %s", enabled ? "aktiviert" : "deaktiviert");
+        }
+    }
+
+    nvs_close(nvs_handle);
+    return ret;
+}
+
+bool telegram_is_enabled(void)
+{
+    return g_enabled;
 }
 
 void telegram_deinit(void)

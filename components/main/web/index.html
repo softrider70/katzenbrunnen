@@ -62,28 +62,6 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <button class="btn-secondary" onclick="loadLogs()">Aktualisieren</button>
 </div>
 <div id="msg-logs" class="msg"></div>
-
-<p style="font-size:12px;margin:20px 0 10px 0"><b>Bewegungsereignisse:</b></p>
-<table class="code-table">
-<thead><tr><th>Zeitstempel</th><th>Dauer (ms)</th></tr></thead>
-<tbody id="pir-events-body"></tbody>
-</table>
-<div class="buttons">
-<button class="btn-secondary" onclick="loadPirEvents()">Aktualisieren</button>
-<button class="btn-danger" onclick="clearPirEvents()">Löschen</button>
-</div>
-<div id="msg-pir-events" class="msg"></div>
-
-<p style="font-size:12px;margin:20px 0 10px 0"><b>Öffnungszeiten:</b></p>
-<table class="code-table">
-<thead><tr><th>Zeitstempel</th><th>Dauer (ms)</th></tr></thead>
-<tbody id="servo-events-body"></tbody>
-</table>
-<div class="buttons">
-<button class="btn-secondary" onclick="loadServoEvents()">Aktualisieren</button>
-<button class="btn-danger" onclick="clearServoEvents()">Löschen</button>
-</div>
-<div id="msg-servo-events" class="msg"></div>
 </div>
 
 <!-- ERROR CODES TAB -->
@@ -168,6 +146,13 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <button class="btn-primary" onclick="saveTelegramConfig()">Speichern</button>
 <button class="btn-secondary" onclick="loadTelegramConfig()">Aktualisieren</button>
 </div>
+<p style="font-size:12px;margin:20px 0 10px 0"><b>Nachrichten aktivieren:</b></p>
+<div style="margin:10px 0">
+<label style="font-size:12px;font-weight:bold;display:flex;align-items:center;gap:10px">
+<input type="checkbox" id="telegram-enabled" style="width:20px;height:20px;cursor:pointer" onchange="toggleTelegramEnabled()">
+<span>Telegram-Nachrichten senden</span>
+</label>
+</div>
 <p style="font-size:12px;margin:20px 0 10px 0"><b>Test:</b></p>
 <div class="buttons">
 <button class="btn-secondary" onclick="testTelegram()">Test-Nachricht senden</button>
@@ -183,7 +168,7 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <input type="text" id="ota-url-input" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px" value="http://192.168.1.191:8070/katzenbrunnen.bin">
 </div>
 <div class="buttons">
-<button class="btn-primary" onclick="startOta()">Update starten</button>
+<button class="btn-primary" id="ota-start-btn" onclick="this.disabled=true;startOta()">Update starten</button>
 <button class="btn-secondary" onclick="checkOtaStatus()">Status prüfen</button>
 <button class="btn-danger" onclick="otaRollback()">Rollback</button>
 </div>
@@ -325,50 +310,6 @@ setTimeout(()=>{location.reload();},2000);
 }
 }).catch(e=>showMsg('wifi','Fehler: '+e.message,true));
 }
-function loadPirEvents(){
-fetch('/api/pir_events').then(r=>r.json()).then(d=>{
-const tbody=document.getElementById('pir-events-body');
-tbody.innerHTML='';
-if(d.events&&d.events.length>0){
-d.events.forEach(e=>{
-const tr=document.createElement('tr');
-tr.innerHTML='<td>'+e.timestamp+'</td><td>'+e.duration_ms+'</td>';
-tbody.appendChild(tr);
-});
-showMsg('pir-events',d.count+' Ereignisse geladen',false);
-}else{
-showMsg('pir-events','Keine Ereignisse',false);
-}
-}).catch(e=>showMsg('pir-events','Fehler: '+e.message,true));
-}
-function clearPirEvents(){
-fetch('/api/pir_events/clear',{method:'POST'}).then(r=>r.json()).then(d=>{
-showMsg('pir-events',d.message,false);
-loadPirEvents();
-}).catch(e=>showMsg('pir-events','Fehler: '+e.message,true));
-}
-function loadServoEvents(){
-fetch('/api/servo_events').then(r=>r.json()).then(d=>{
-const tbody=document.getElementById('servo-events-body');
-tbody.innerHTML='';
-if(d.events&&d.events.length>0){
-d.events.forEach(e=>{
-const tr=document.createElement('tr');
-tr.innerHTML='<td>'+e.timestamp+'</td><td>'+e.duration_ms+'</td>';
-tbody.appendChild(tr);
-});
-showMsg('servo-events',d.count+' Ereignisse geladen',false);
-}else{
-showMsg('servo-events','Keine Ereignisse',false);
-}
-}).catch(e=>showMsg('servo-events','Fehler: '+e.message,true));
-}
-function clearServoEvents(){
-fetch('/api/servo_events/clear',{method:'POST'}).then(r=>r.json()).then(d=>{
-showMsg('servo-events',d.message,false);
-loadServoEvents();
-}).catch(e=>showMsg('servo-events','Fehler: '+e.message,true));
-}
 function checkOtaStatus(){
 fetch('/api/ota/status').then(r=>r.json()).then(d=>{
 document.getElementById('ota-status-text').textContent=d.in_progress?'Läuft':'Inaktiv';
@@ -377,16 +318,35 @@ document.getElementById('ota-message-text').textContent=d.message||'-';
 showMsg('ota','Status aktualisiert',false);
 }).catch(e=>showMsg('ota','Fehler: '+e.message,true));
 }
+let otaStarting=false;
 function startOta(){
+if(otaStarting){
+showMsg('ota','OTA läuft bereits',true);
+return;
+}
 const url=document.getElementById('ota-url-input').value;
 if(!url){
+const btn=document.getElementById('ota-start-btn');
+btn.disabled=false;
 showMsg('ota','URL eingeben',true);
 return;
 }
+otaStarting=true;
+const btn=document.getElementById('ota-start-btn');
 fetch('/api/ota/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url})}).then(r=>r.json()).then(d=>{
 showMsg('ota',d.message,d.status!=='OK');
 checkOtaStatus();
-}).catch(e=>showMsg('ota','Fehler: '+e.message,true));
+if(d.status==='OK'){
+setTimeout(()=>{otaStarting=false;btn.disabled=false;},5000);
+}else{
+otaStarting=false;
+btn.disabled=false;
+}
+}).catch(e=>{
+showMsg('ota','Fehler: '+e.message,true);
+otaStarting=false;
+btn.disabled=false;
+});
 }
 function otaRollback(){
 if(!confirm('Wirklich Rollback ausführen?'))return;
@@ -453,12 +413,18 @@ function loadTelegramConfig(){
 fetch('/api/telegram_config').then(r=>r.json()).then(d=>{
 document.getElementById('telegram-bot-token').value=d.configured?'*** (gespeichert)':'';
 document.getElementById('telegram-chat-id').value=d.configured?'*** (gespeichert)':'';
+document.getElementById('telegram-enabled').checked=d.enabled;
 showMsg('telegram',d.configured?'Konfiguration geladen':'Nicht konfiguriert',false);
 }).catch(e=>showMsg('telegram','Fehler: '+e.message,true));
 }
 function saveTelegramConfig(){
 const botToken=document.getElementById('telegram-bot-token').value.trim();
 const chatId=document.getElementById('telegram-chat-id').value.trim();
+// Nicht speichern, wenn Felder den Platzhalter enthalten
+if(botToken==='*** (gespeichert)'||chatId==='*** (gespeichert)'){
+showMsg('telegram','Bitte neue Werte eingeben (Platzhalter nicht speichern)',true);
+return;
+}
 if(!botToken){
 showMsg('telegram','Bot Token darf nicht leer sein',true);
 return;
@@ -478,6 +444,12 @@ document.getElementById('telegram-chat-id').value='*** (gespeichert)';
 }
 function testTelegram(){
 fetch('/api/telegram/test',{method:'POST'}).then(r=>r.json()).then(d=>{
+showMsg('telegram',d.message,d.status!=='OK');
+}).catch(e=>showMsg('telegram','Fehler: '+e.message,true));
+}
+function toggleTelegramEnabled(){
+const enabled=document.getElementById('telegram-enabled').checked;
+fetch('/api/telegram/enabled',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:Number(enabled)})}).then(r=>r.json()).then(d=>{
 showMsg('telegram',d.message,d.status!=='OK');
 }).catch(e=>showMsg('telegram','Fehler: '+e.message,true));
 }

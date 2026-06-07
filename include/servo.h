@@ -51,30 +51,6 @@ bool servo_is_valve_open(void);
  */
 void servo_emergency_close(void);
 
-// Maximale Anzahl gespeicherter Öffnungsereignisse (Ringbuffer)
-#define SERVO_EVENT_MAX_COUNT 50
-
-/**
- * @brief Öffnungsereignis-Struktur
- */
-typedef struct {
-    uint64_t timestamp_ms;    // Zeitstempel in ms
-    uint32_t duration_ms;     // Dauer der Öffnung in ms
-} servo_event_t;
-
-/**
- * @brief Öffnungsereignisse abrufen
- * @param events Buffer für Ereignisse
- * @param max_count Maximale Anzahl der abzurufenden Ereignisse
- * @return Anzahl der abgerufenen Ereignisse
- */
-uint16_t servo_get_events(servo_event_t *events, uint16_t max_count);
-
-/**
- * @brief Öffnungsereignisse löschen
- */
-void servo_clear_events(void);
-
 /**
  * @brief Servo-Modul deinitialisieren (Mutex cleanup)
  */

@@ -46,6 +46,19 @@ esp_err_t telegram_save_chat_id(const char *chat_id);
 bool telegram_is_configured(void);
 
 /**
+ * @brief Telegram-Nachrichten aktivieren/deaktivieren
+ * @param enabled true für aktiviert, false für deaktiviert
+ * @return ESP_OK bei Erfolg, sonst Fehlercode
+ */
+esp_err_t telegram_set_enabled(bool enabled);
+
+/**
+ * @brief Prüfen ob Telegram-Nachrichten aktiviert sind
+ * @return true wenn aktiviert, sonst false
+ */
+bool telegram_is_enabled(void);
+
+/**
  * @brief Telegram-Modul deinitialisieren
  */
 void telegram_deinit(void);

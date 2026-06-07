@@ -30,10 +30,6 @@ static error_log_entry_t error_entries_buffer[ERROR_LOG_MAX_ENTRIES];
 static char error_json_buffer[8192];
 static stack_info_t stack_info_buffer[16];
 static char stack_json_buffer[2048];
-static pir_event_t pir_events_buffer[PIR_EVENT_MAX_COUNT];
-static char pir_json_buffer[8192];
-static servo_event_t servo_events_buffer[SERVO_EVENT_MAX_COUNT];
-static char servo_json_buffer[8192];
 
 // JSON Escape Helper
 static void json_escape_string(const char *src, char *dst, size_t dst_size)
@@ -215,9 +211,9 @@ static esp_err_t ota_status_handler(httpd_req_t *req)
     bool last_result_ok = false;
     char phase[32] = {0};
     char message[64] = {0};
-    
+
     ota_get_status(&in_progress, &last_result_ok, phase, message);
-    
+
     char json_response[256];
     snprintf(json_response, sizeof(json_response),
         "{"
@@ -235,7 +231,7 @@ static esp_err_t ota_status_handler(httpd_req_t *req)
         phase,
         message
     );
-    
+
     send_json_response(req, json_response);
     return ESP_OK;
 }
@@ -245,15 +241,16 @@ static esp_err_t ota_status_handler(httpd_req_t *req)
 // ============================================================================
 static esp_err_t ota_start_handler(httpd_req_t *req)
 {
+    ESP_LOGI(TAG, "OTA-Start-Handler aufgerufen");
     char body[320] = {0};
     char url[192] = {0};
-    
+
     int total_len = req->content_len;
     if (total_len >= sizeof(body)) {
         send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Content too large\"}");
         return ESP_OK;
     }
-    
+
     int received = httpd_req_recv(req, body, total_len);
     if (received <= 0) {
         if (received == HTTPD_SOCK_ERR_TIMEOUT) {
@@ -263,7 +260,7 @@ static esp_err_t ota_start_handler(httpd_req_t *req)
         }
         return ESP_OK;
     }
-    
+
     // Simple JSON parsing for URL
     const char *url_key = "\"url\":\"";
     char *url_start = strstr(body, url_key);
@@ -271,29 +268,35 @@ static esp_err_t ota_start_handler(httpd_req_t *req)
         send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"URL not found\"}");
         return ESP_OK;
     }
-    
+
     url_start += strlen(url_key);
     char *url_end = strchr(url_start, '"');
     if (url_end == NULL) {
         send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Invalid JSON\"}");
         return ESP_OK;
     }
-    
+
     size_t url_len = url_end - url_start;
     if (url_len >= sizeof(url)) {
         send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"URL too long\"}");
         return ESP_OK;
     }
-    
+
     strncpy(url, url_start, url_len);
     url[url_len] = '\0';
-    
+
+    ESP_LOGI(TAG, "OTA-Start: URL=%s", url);
     esp_err_t ret = ota_start_update(url);
+    ESP_LOGI(TAG, "OTA-Start: Rückgabe=%s", esp_err_to_name(ret));
     if (ret != ESP_OK) {
-        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"OTA start failed\"}");
+        if (ret == ESP_ERR_INVALID_STATE) {
+            send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"OTA bereits aktiv\"}");
+        } else {
+            send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"OTA start failed\"}");
+        }
         return ESP_OK;
     }
-    
+
     send_json_response(req, "{\"status\":\"OK\",\"message\":\"OTA update started\"}");
     return ESP_OK;
 }
@@ -668,102 +671,6 @@ static esp_err_t captive_portal_handler(httpd_req_t *req)
 }
 
 // ============================================================================
-// PIR Events Handler: GET /api/pir_events
-// ============================================================================
-static esp_err_t pir_events_handler(httpd_req_t *req)
-{
-    // Statische Puffer verwenden (vermeidet Heap-Fragmentierung)
-    uint16_t count = pir_get_events(pir_events_buffer, PIR_EVENT_MAX_COUNT);
-
-    int offset = snprintf(pir_json_buffer, sizeof(pir_json_buffer), "{\"events\":[");
-
-    for (uint16_t i = 0; i < count; i++) {
-        if ((size_t)offset >= sizeof(pir_json_buffer) - 80) {
-            break;
-        }
-
-        // Zeitstempel in lesbares Format umwandeln (seit Boot in Sekunden)
-        uint64_t timestamp_sec = pir_events_buffer[i].timestamp_ms / 1000;
-        uint64_t hours = timestamp_sec / 3600;
-        uint64_t minutes = (timestamp_sec % 3600) / 60;
-        uint64_t seconds = timestamp_sec % 60;
-
-        offset += snprintf(pir_json_buffer + offset, sizeof(pir_json_buffer) - offset,
-            "%s{\"timestamp_ms\":%llu,\"timestamp\":\"%lluh %llum %llus\",\"duration_ms\":%u}",
-            (i > 0) ? "," : "",
-            (unsigned long long)pir_events_buffer[i].timestamp_ms,
-            (unsigned long long)hours,
-            (unsigned long long)minutes,
-            (unsigned long long)seconds,
-            (unsigned int)pir_events_buffer[i].duration_ms
-        );
-    }
-
-    snprintf(pir_json_buffer + offset, sizeof(pir_json_buffer) - offset, "],\"count\":%d}", count);
-
-    send_json_response(req, pir_json_buffer);
-    return ESP_OK;
-}
-
-// ============================================================================
-// PIR Events Clear Handler: POST /api/pir_events/clear
-// ============================================================================
-static esp_err_t pir_events_clear_handler(httpd_req_t *req)
-{
-    pir_clear_events();
-    send_json_response(req, "{\"status\":\"OK\",\"message\":\"PIR-Ereignisse gelöscht\"}");
-    return ESP_OK;
-}
-
-// ============================================================================
-// Servo Events Handler: GET /api/servo_events
-// ============================================================================
-static esp_err_t servo_events_handler(httpd_req_t *req)
-{
-    // Statische Puffer verwenden (vermeidet Heap-Fragmentierung)
-    uint16_t count = servo_get_events(servo_events_buffer, SERVO_EVENT_MAX_COUNT);
-
-    int offset = snprintf(servo_json_buffer, sizeof(servo_json_buffer), "{\"events\":[");
-
-    for (uint16_t i = 0; i < count; i++) {
-        if ((size_t)offset >= sizeof(servo_json_buffer) - 80) {
-            break;
-        }
-
-        // Zeitstempel in lesbares Format umwandeln (seit Boot in Sekunden)
-        uint64_t timestamp_sec = servo_events_buffer[i].timestamp_ms / 1000;
-        uint64_t hours = timestamp_sec / 3600;
-        uint64_t minutes = (timestamp_sec % 3600) / 60;
-        uint64_t seconds = timestamp_sec % 60;
-
-        offset += snprintf(servo_json_buffer + offset, sizeof(servo_json_buffer) - offset,
-            "%s{\"timestamp_ms\":%llu,\"timestamp\":\"%lluh %llum %llus\",\"duration_ms\":%u}",
-            (i > 0) ? "," : "",
-            (unsigned long long)servo_events_buffer[i].timestamp_ms,
-            (unsigned long long)hours,
-            (unsigned long long)minutes,
-            (unsigned long long)seconds,
-            (unsigned int)servo_events_buffer[i].duration_ms
-        );
-    }
-
-    snprintf(servo_json_buffer + offset, sizeof(servo_json_buffer) - offset, "],\"count\":%d}", count);
-
-    send_json_response(req, servo_json_buffer);
-    return ESP_OK;
-}
-
-// ============================================================================
-// Servo Events Clear Handler: POST /api/servo_events/clear
-// ============================================================================
-static esp_err_t servo_events_clear_handler(httpd_req_t *req)
-{
-    servo_clear_events();
-    send_json_response(req, "{\"status\":\"OK\",\"message\":\"Öffnungsereignisse gelöscht\"}");
-    return ESP_OK;
-}
-
-// ============================================================================
 // URI Handler Registration
 // ============================================================================
 static httpd_uri_t status_uri = {
@@ -869,11 +776,13 @@ static esp_err_t telegram_config_get_handler(httpd_req_t *req)
 {
     char response[512];
     bool configured = telegram_is_configured();
-    
+    bool enabled = telegram_is_enabled();
+
     snprintf(response, sizeof(response),
-        "{\"configured\":%s}",
-        configured ? "true" : "false");
-    
+        "{\"configured\":%s,\"enabled\":%s}",
+        configured ? "true" : "false",
+        enabled ? "true" : "false");
+
     send_json_response(req, response);
     return ESP_OK;
 }
@@ -940,6 +849,36 @@ static esp_err_t telegram_test_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t telegram_enabled_post_handler(httpd_req_t *req)
+{
+    char body[128] = {0};
+    bool enabled;
+
+    int total_len = req->content_len;
+    if (total_len <= 0 || total_len >= (int)sizeof(body)) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Invalid body\"}");
+        return ESP_OK;
+    }
+
+    int received = httpd_req_recv(req, body, total_len);
+    if (received <= 0) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to read body\"}");
+        return ESP_OK;
+    }
+
+    if (parse_json_number(body, "enabled", (uint32_t*)&enabled)) {
+        esp_err_t ret = telegram_set_enabled(enabled);
+        if (ret == ESP_OK) {
+            send_json_response(req, "{\"status\":\"OK\",\"message\":\"Telegram enabled status updated\"}");
+        } else {
+            send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to update enabled status\"}");
+        }
+    } else {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Missing or invalid enabled field\"}");
+    }
+    return ESP_OK;
+}
+
 static httpd_uri_t telegram_config_get_uri = {
     .uri = "/api/telegram_config",
     .method = HTTP_GET,
@@ -961,38 +900,17 @@ static httpd_uri_t telegram_test_uri = {
     .user_ctx = NULL
 };
 
+static httpd_uri_t telegram_enabled_post_uri = {
+    .uri = "/api/telegram/enabled",
+    .method = HTTP_POST,
+    .handler = telegram_enabled_post_handler,
+    .user_ctx = NULL
+};
+
 static httpd_uri_t stacks_uri = {
     .uri = "/api/stacks",
     .method = HTTP_GET,
     .handler = stacks_handler,
-    .user_ctx = NULL
-};
-
-static httpd_uri_t pir_events_uri = {
-    .uri = "/api/pir_events",
-    .method = HTTP_GET,
-    .handler = pir_events_handler,
-    .user_ctx = NULL
-};
-
-static httpd_uri_t pir_events_clear_uri = {
-    .uri = "/api/pir_events/clear",
-    .method = HTTP_POST,
-    .handler = pir_events_clear_handler,
-    .user_ctx = NULL
-};
-
-static httpd_uri_t servo_events_uri = {
-    .uri = "/api/servo_events",
-    .method = HTTP_GET,
-    .handler = servo_events_handler,
-    .user_ctx = NULL
-};
-
-static httpd_uri_t servo_events_clear_uri = {
-    .uri = "/api/servo_events/clear",
-    .method = HTTP_POST,
-    .handler = servo_events_clear_handler,
     .user_ctx = NULL
 };
 
@@ -1044,11 +962,8 @@ esp_err_t web_server_init(void)
     httpd_register_uri_handler(server, &telegram_config_get_uri);
     httpd_register_uri_handler(server, &telegram_config_post_uri);
     httpd_register_uri_handler(server, &telegram_test_uri);
+    httpd_register_uri_handler(server, &telegram_enabled_post_uri);
     httpd_register_uri_handler(server, &stacks_uri);
-    httpd_register_uri_handler(server, &pir_events_uri);
-    httpd_register_uri_handler(server, &pir_events_clear_uri);
-    httpd_register_uri_handler(server, &servo_events_uri);
-    httpd_register_uri_handler(server, &servo_events_clear_uri);
     httpd_register_uri_handler(server, &captive_portal_uri);  // Muss zuletzt registriert werden (Catch-All)
     
     ESP_LOGI(TAG, "Web-Server gestartet auf Port %d", WEB_SERVER_PORT);

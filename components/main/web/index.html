@@ -194,7 +194,7 @@ document.getElementById(tabId).classList.add('active');
 if(tabId==='dashboard'){
 updateDashboard();
 if(dashboardInterval)clearInterval(dashboardInterval);
-dashboardInterval=setInterval(updateDashboard,2000);
+dashboardInterval=setInterval(updateDashboard,1000);
 }else{
 if(dashboardInterval){
 clearInterval(dashboardInterval);

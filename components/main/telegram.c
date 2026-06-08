@@ -21,8 +21,8 @@ static const char *TAG = "telegram";
 #define TELEGRAM_SEND_ENDPOINT "/sendMessage"
 
 // Nacht-Modus Konfiguration
-#define MAX_NIGHT_EVENTS 6
-#define NIGHT_EVENT_MAX_LEN 32  // "HH:MM+Dauer" (z.B. "23:45+5s")
+#define MAX_NIGHT_EVENTS 20
+#define NIGHT_EVENT_MAX_LEN 12  // "HH:MM+SS" (z.B. "23:45+99")
 
 // Lokale Speicher für Token und Chat ID
 static char g_bot_token[256] = {0};

@@ -164,6 +164,9 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <input type="number" id="night-end-hour" min="0" max="23" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px" value="8">
 </div>
 </div>
+<div class="buttons">
+<button class="btn-secondary" onclick="saveNightHours()">Nachtzeiten speichern</button>
+</div>
 <p style="font-size:12px;margin:20px 0 10px 0"><b>Test:</b></p>
 <div class="buttons">
 <button class="btn-secondary" onclick="testTelegram()">Test-Nachricht senden</button>
@@ -446,8 +449,6 @@ showMsg('telegram',d.configured?'Konfiguration geladen':'Nicht konfiguriert',fal
 function saveTelegramConfig(){
 const botToken=document.getElementById('telegram-bot-token').value.trim();
 const chatId=document.getElementById('telegram-chat-id').value.trim();
-const nightStart=document.getElementById('night-start-hour').value;
-const nightEnd=document.getElementById('night-end-hour').value;
 // Nicht speichern, wenn Felder den Platzhalter enthalten
 if(botToken==='*** (gespeichert)'||chatId==='*** (gespeichert)'){
 showMsg('telegram','Bitte neue Werte eingeben (Platzhalter nicht speichern)',true);
@@ -461,13 +462,29 @@ if(!chatId){
 showMsg('telegram','Chat ID darf nicht leer sein',true);
 return;
 }
-const body=JSON.stringify({bot_token:botToken,chat_id:chatId,night_start_hour:nightStart,night_end_hour:nightEnd});
+const body=JSON.stringify({bot_token:botToken,chat_id:chatId});
 fetch('/api/telegram_config',{method:'POST',headers:{'Content-Type':'application/json'},body:body}).then(r=>r.json()).then(d=>{
 showMsg('telegram',d.message,d.status!=='OK');
 if(d.status==='OK'){
 document.getElementById('telegram-bot-token').value='*** (gespeichert)';
 document.getElementById('telegram-chat-id').value='*** (gespeichert)';
 }
+}).catch(e=>showMsg('telegram','Fehler: '+e.message,true));
+}
+function saveNightHours(){
+const nightStart=parseInt(document.getElementById('night-start-hour').value);
+const nightEnd=parseInt(document.getElementById('night-end-hour').value);
+if(nightStart<0||nightStart>23){
+showMsg('telegram','Startzeit muss 0-23 sein',true);
+return;
+}
+if(nightEnd<0||nightEnd>23){
+showMsg('telegram','Stoppzeit muss 0-23 sein',true);
+return;
+}
+const body=JSON.stringify({night_start_hour:nightStart,night_end_hour:nightEnd});
+fetch('/api/telegram/night_hours',{method:'POST',headers:{'Content-Type':'application/json'},body:body}).then(r=>r.json()).then(d=>{
+showMsg('telegram',d.message,d.status!=='OK');
 }).catch(e=>showMsg('telegram','Fehler: '+e.message,true));
 }
 function testTelegram(){

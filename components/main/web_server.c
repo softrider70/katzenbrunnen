@@ -900,6 +900,61 @@ static esp_err_t telegram_enabled_post_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t telegram_night_hours_post_handler(httpd_req_t *req)
+{
+    char body[128] = {0};
+    int night_start = -1;
+    int night_end = -1;
+
+    int total_len = req->content_len;
+    if (total_len <= 0 || total_len >= (int)sizeof(body)) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Invalid body\"}");
+        return ESP_OK;
+    }
+
+    int received = httpd_req_recv(req, body, total_len);
+    if (received <= 0) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to read body\"}");
+        return ESP_OK;
+    }
+
+    bool has_start = parse_json_number(body, "night_start_hour", (uint32_t*)&night_start);
+    bool has_end = parse_json_number(body, "night_end_hour", (uint32_t*)&night_end);
+
+    if (!has_start && !has_end) {
+        send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Missing night_start_hour or night_end_hour\"}");
+        return ESP_OK;
+    }
+
+    esp_err_t ret = ESP_OK;
+    if (has_start) {
+        if (night_start < 0 || night_start > 23) {
+            send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Invalid night_start_hour (must be 0-23)\"}");
+            return ESP_OK;
+        }
+        ret = telegram_set_night_start_hour(night_start);
+        if (ret != ESP_OK) {
+            send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to save night_start_hour\"}");
+            return ESP_OK;
+        }
+    }
+
+    if (has_end) {
+        if (night_end < 0 || night_end > 23) {
+            send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Invalid night_end_hour (must be 0-23)\"}");
+            return ESP_OK;
+        }
+        ret = telegram_set_night_end_hour(night_end);
+        if (ret != ESP_OK) {
+            send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to save night_end_hour\"}");
+            return ESP_OK;
+        }
+    }
+
+    send_json_response(req, "{\"status\":\"OK\",\"message\":\"Night hours updated\"}");
+    return ESP_OK;
+}
+
 static httpd_uri_t telegram_config_get_uri = {
     .uri = "/api/telegram_config",
     .method = HTTP_GET,
@@ -925,6 +980,13 @@ static httpd_uri_t telegram_enabled_post_uri = {
     .uri = "/api/telegram/enabled",
     .method = HTTP_POST,
     .handler = telegram_enabled_post_handler,
+    .user_ctx = NULL
+};
+
+static httpd_uri_t telegram_night_hours_post_uri = {
+    .uri = "/api/telegram/night_hours",
+    .method = HTTP_POST,
+    .handler = telegram_night_hours_post_handler,
     .user_ctx = NULL
 };
 
@@ -984,6 +1046,7 @@ esp_err_t web_server_init(void)
     httpd_register_uri_handler(server, &telegram_config_post_uri);
     httpd_register_uri_handler(server, &telegram_test_uri);
     httpd_register_uri_handler(server, &telegram_enabled_post_uri);
+    httpd_register_uri_handler(server, &telegram_night_hours_post_uri);
     httpd_register_uri_handler(server, &stacks_uri);
     httpd_register_uri_handler(server, &captive_portal_uri);  // Muss zuletzt registriert werden (Catch-All)
     

@@ -142,7 +142,15 @@ bool telegram_is_night_mode(void)
     localtime_r(&now, &timeinfo);
 
     int hour = timeinfo.tm_hour;
-    return (hour >= g_night_start_hour || hour < g_night_end_hour);
+
+    // Über Mitternacht (z.B. 23:00 - 08:00)
+    if (g_night_start_hour > g_night_end_hour) {
+        return (hour >= g_night_start_hour || hour < g_night_end_hour);
+    }
+    // Innerhalb eines Tages (z.B. 20:00 - 23:00)
+    else {
+        return (hour >= g_night_start_hour && hour < g_night_end_hour);
+    }
 }
 
 void telegram_send_night_buffer(void)

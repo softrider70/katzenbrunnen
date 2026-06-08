@@ -248,6 +248,9 @@ static esp_err_t init_hardware(void)
     ret = web_server_init();
     if (ret != ESP_OK) return ret;
 
+    ret = web_server_start();
+    if (ret != ESP_OK) return ret;
+
     ret = ota_init();
     if (ret != ESP_OK) return ret;
 

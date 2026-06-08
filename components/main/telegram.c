@@ -13,8 +13,8 @@ static const char *TAG = "telegram";
 #define NVS_KEY_BOT_TOKEN "bot_token"
 #define NVS_KEY_CHAT_ID "chat_id"
 #define NVS_KEY_ENABLED "enabled"
-#define NVS_KEY_NIGHT_START_HOUR "night_start_hour"
-#define NVS_KEY_NIGHT_END_HOUR "night_end_hour"
+#define NVS_KEY_NIGHT_START_HOUR "night_start"
+#define NVS_KEY_NIGHT_END_HOUR "night_end"
 
 // Bot API URL
 #define TELEGRAM_API_URL "https://api.telegram.org/bot"

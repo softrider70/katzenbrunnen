@@ -44,6 +44,7 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 
 <!-- DASHBOARD TAB -->
 <div class="tab-content active" id="dashboard">
+<div class="status-row"><span>Uhrzeit:</span><span id="current-time">-</span></div>
 <div class="status-row"><span>Wasserhahn:</span><span id="valve-state">-</span></div>
 <div class="status-row"><span>Bewegung:</span><span id="motion-state">-</span></div>
 <div class="status-row"><span>WiFi:</span><span id="wifi-state">-</span></div>
@@ -242,6 +243,8 @@ setTimeout(()=>msgEl.style.display='none',3000);
 }
 }
 function updateDashboard(){
+const now=new Date();
+document.getElementById('current-time').textContent=now.toLocaleTimeString('de-DE');
 fetch('/api/status').then(r=>r.json()).then(d=>{
 document.getElementById('valve-state').textContent=d.valve_open?'GEÖFFNET':'GESCHLOSSEN';
 document.getElementById('valve-state').style.color=d.valve_open?'#ef4444':'#22c55e';

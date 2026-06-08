@@ -156,22 +156,29 @@ bool telegram_is_night_mode(void)
 void telegram_buffer_night_event(const char *event_text)
 {
     if (event_text == NULL || g_night_buffer_count >= MAX_NIGHT_EVENTS) {
+        ESP_LOGW(TAG, "Nacht-Event nicht gepuffert: %s (count=%d)", event_text ? event_text : "NULL", g_night_buffer_count);
         return;
     }
 
     strncpy(g_night_buffer[g_night_buffer_count], event_text, NIGHT_EVENT_MAX_LEN - 1);
     g_night_buffer[g_night_buffer_count][NIGHT_EVENT_MAX_LEN - 1] = '\0';
+    ESP_LOGI(TAG, "Nacht-Event gepuffert [%d/%d]: %s", g_night_buffer_count + 1, MAX_NIGHT_EVENTS, event_text);
     g_night_buffer_count++;
 }
 
 void telegram_send_night_buffer(void)
 {
+    ESP_LOGI(TAG, "Nacht-Buffer senden: count=%d", g_night_buffer_count);
+
     if (g_night_buffer_count == 0) {
+        ESP_LOGW(TAG, "Nacht-Buffer leer - nichts zu senden");
         return;  // Keine gepufferten Nachrichten
     }
 
     if (!telegram_is_configured() || !g_enabled) {
+        ESP_LOGW(TAG, "Telegram nicht konfiguriert oder deaktiviert - Puffer geleert");
         g_night_buffer_count = 0;  // Puffer leeren
+        memset(g_night_buffer, 0, sizeof(g_night_buffer));
         return;
     }
 
@@ -183,12 +190,15 @@ void telegram_send_night_buffer(void)
         pos += snprintf(message + pos, sizeof(message) - pos, "%s\n", g_night_buffer[i]);
     }
 
+    ESP_LOGI(TAG, "Nacht-Nachricht: %s", message);
+
     // Nachricht senden
     telegram_send_message(message);
 
     // Puffer leeren
     g_night_buffer_count = 0;
     memset(g_night_buffer, 0, sizeof(g_night_buffer));
+    ESP_LOGI(TAG, "Nacht-Buffer geleert");
 }
 
 esp_err_t telegram_send_message(const char *message)

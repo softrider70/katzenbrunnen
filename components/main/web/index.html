@@ -312,9 +312,9 @@ setTimeout(()=>{location.reload();},2000);
 }
 function checkOtaStatus(){
 fetch('/api/ota/status').then(r=>r.json()).then(d=>{
-document.getElementById('ota-status-text').textContent=d.in_progress?'Läuft':'Inaktiv';
-document.getElementById('ota-phase-text').textContent=d.phase||'-';
-document.getElementById('ota-message-text').textContent=d.message||'-';
+document.getElementById('ota-status-text').textContent=d.ota.in_progress?'Läuft':'Inaktiv';
+document.getElementById('ota-phase-text').textContent=d.ota.phase||'-';
+document.getElementById('ota-message-text').textContent=d.ota.message||'-';
 showMsg('ota','Status aktualisiert',false);
 }).catch(e=>showMsg('ota','Fehler: '+e.message,true));
 }

@@ -163,6 +163,7 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <!-- OTA TAB -->
 <div class="tab-content" id="ota">
 <p style="font-size:12px;margin:0 0 10px 0"><b>OTA Firmware Update:</b></p>
+<p style="font-size:12px;margin:0 0 10px 0"><b>Aktuelle Version:</b> <span id="ota-version-info">-</span></p>
 <div style="margin:10px 0">
 <label style="font-size:12px;font-weight:bold">Firmware URL:</label>
 <input type="text" id="ota-url-input" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px" value="http://192.168.1.191:8070/katzenbrunnen.bin">
@@ -184,6 +185,7 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 
 <script>
 let dashboardInterval=null;
+let otaInterval=null;
 function showTab(tabId){
 document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
 document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
@@ -200,7 +202,17 @@ dashboardInterval=null;
 }
 }
 if(tabId==='logs')loadLogs();
-if(tabId==='ota')checkOtaStatus();
+if(tabId==='ota'){
+checkOtaStatus();
+updateDashboard();  // Für Build-Nummer
+if(otaInterval)clearInterval(otaInterval);
+otaInterval=setInterval(checkOtaStatus,800);
+}else{
+if(otaInterval){
+clearInterval(otaInterval);
+otaInterval=null;
+}
+}
 if(tabId==='codes')loadCodes();
 if(tabId==='wifi')loadWifiConfig();
 if(tabId==='servo')loadServoConfig();
@@ -226,6 +238,7 @@ document.getElementById('wifi-state').style.color=d.wifi_connected?'#22c55e':'#e
 document.getElementById('wifi-ssid').textContent=d.wifi_ssid;
 document.getElementById('wifi-ip').textContent=d.wifi_ip;
 document.getElementById('version-info').textContent=d.version+' (Build '+d.build_number+')';
+document.getElementById('ota-version-info').textContent=d.version+' (Build '+d.build_number+')';
 }).catch(e=>console.error('updateDashboard failed:',e));
 }
 function loadLogs(){

@@ -397,13 +397,14 @@ static void control_task(void *pvParameters)
             servo_calibrate();
         }
 
-        // Nacht-Modus: Um 8 Uhr gepufferte Nachrichten senden
+        // Nacht-Modus: Um Stoppzeit gepufferte Nachrichten senden
         time_t now_time;
         struct tm timeinfo;
         time(&now_time);
         localtime_r(&now_time, &timeinfo);
         
-        if (timeinfo.tm_hour == 8 && timeinfo.tm_min == 0 && timeinfo.tm_mday != last_night_send_day) {
+        int night_end_hour = telegram_get_night_end_hour();
+        if (timeinfo.tm_hour == night_end_hour && timeinfo.tm_min == 0 && timeinfo.tm_mday != last_night_send_day) {
             telegram_send_night_buffer();
             last_night_send_day = timeinfo.tm_mday;
         }

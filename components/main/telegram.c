@@ -13,14 +13,14 @@ static const char *TAG = "telegram";
 #define NVS_KEY_BOT_TOKEN "bot_token"
 #define NVS_KEY_CHAT_ID "chat_id"
 #define NVS_KEY_ENABLED "enabled"
+#define NVS_KEY_NIGHT_START_HOUR "night_start_hour"
+#define NVS_KEY_NIGHT_END_HOUR "night_end_hour"
 
 // Bot API URL
 #define TELEGRAM_API_URL "https://api.telegram.org/bot"
 #define TELEGRAM_SEND_ENDPOINT "/sendMessage"
 
 // Nacht-Modus Konfiguration
-#define NIGHT_MODE_START_HOUR 18  // Zum Testen auf 18 Uhr gesetzt
-#define NIGHT_MODE_END_HOUR 8
 #define MAX_NIGHT_EVENTS 6
 #define NIGHT_EVENT_MAX_LEN 32  // "HH:MM+Dauer" (z.B. "23:45+5s")
 
@@ -28,6 +28,8 @@ static const char *TAG = "telegram";
 static char g_bot_token[256] = {0};
 static char g_chat_id[64] = {0};
 static bool g_enabled = true;  // Standardmäßig aktiviert
+static int g_night_start_hour = 23;  // Standard: 23 Uhr
+static int g_night_end_hour = 8;    // Standard: 8 Uhr
 
 // Nacht-Modus Puffer
 static char g_night_buffer[MAX_NIGHT_EVENTS][NIGHT_EVENT_MAX_LEN] = {0};
@@ -108,6 +110,26 @@ esp_err_t telegram_init(void)
         ESP_LOGI(TAG, "Enabled-Status nicht in NVS gefunden, Standard: aktiviert");
     }
 
+    // Nacht-Startzeit lesen
+    int8_t night_start = 23;
+    ret = nvs_get_i8(nvs_handle, NVS_KEY_NIGHT_START_HOUR, &night_start);
+    if (ret == ESP_OK) {
+        g_night_start_hour = night_start;
+        ESP_LOGI(TAG, "Nacht-Startzeit geladen: %d Uhr", g_night_start_hour);
+    } else {
+        ESP_LOGI(TAG, "Nacht-Startzeit nicht in NVS gefunden, Standard: 23 Uhr");
+    }
+
+    // Nacht-Stoppzeit lesen
+    int8_t night_end = 8;
+    ret = nvs_get_i8(nvs_handle, NVS_KEY_NIGHT_END_HOUR, &night_end);
+    if (ret == ESP_OK) {
+        g_night_end_hour = night_end;
+        ESP_LOGI(TAG, "Nacht-Stoppzeit geladen: %d Uhr", g_night_end_hour);
+    } else {
+        ESP_LOGI(TAG, "Nacht-Stoppzeit nicht in NVS gefunden, Standard: 8 Uhr");
+    }
+
     nvs_close(nvs_handle);
     return ESP_OK;
 }
@@ -120,7 +142,7 @@ bool telegram_is_night_mode(void)
     localtime_r(&now, &timeinfo);
 
     int hour = timeinfo.tm_hour;
-    return (hour >= NIGHT_MODE_START_HOUR || hour < NIGHT_MODE_END_HOUR);
+    return (hour >= g_night_start_hour || hour < g_night_end_hour);
 }
 
 void telegram_send_night_buffer(void)
@@ -414,6 +436,74 @@ esp_err_t telegram_set_enabled(bool enabled)
 bool telegram_is_enabled(void)
 {
     return g_enabled;
+}
+
+esp_err_t telegram_set_night_start_hour(int hour)
+{
+    if (hour < 0 || hour > 23) {
+        ESP_LOGE(TAG, "Ungültige Nacht-Startzeit: %d (muss 0-23 sein)", hour);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    esp_err_t ret;
+    nvs_handle_t nvs_handle;
+
+    ret = nvs_open(NVS_TELEGRAM_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "NVS öffnen fehlgeschlagen");
+        return ret;
+    }
+
+    ret = nvs_set_i8(nvs_handle, NVS_KEY_NIGHT_START_HOUR, (int8_t)hour);
+    if (ret == ESP_OK) {
+        ret = nvs_commit(nvs_handle);
+        if (ret == ESP_OK) {
+            g_night_start_hour = hour;
+            ESP_LOGI(TAG, "Nacht-Startzeit gespeichert: %d Uhr", hour);
+        }
+    }
+
+    nvs_close(nvs_handle);
+    return ret;
+}
+
+esp_err_t telegram_set_night_end_hour(int hour)
+{
+    if (hour < 0 || hour > 23) {
+        ESP_LOGE(TAG, "Ungültige Nacht-Stoppzeit: %d (muss 0-23 sein)", hour);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    esp_err_t ret;
+    nvs_handle_t nvs_handle;
+
+    ret = nvs_open(NVS_TELEGRAM_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "NVS öffnen fehlgeschlagen");
+        return ret;
+    }
+
+    ret = nvs_set_i8(nvs_handle, NVS_KEY_NIGHT_END_HOUR, (int8_t)hour);
+    if (ret == ESP_OK) {
+        ret = nvs_commit(nvs_handle);
+        if (ret == ESP_OK) {
+            g_night_end_hour = hour;
+            ESP_LOGI(TAG, "Nacht-Stoppzeit gespeichert: %d Uhr", hour);
+        }
+    }
+
+    nvs_close(nvs_handle);
+    return ret;
+}
+
+int telegram_get_night_start_hour(void)
+{
+    return g_night_start_hour;
+}
+
+int telegram_get_night_end_hour(void)
+{
+    return g_night_end_hour;
 }
 
 void telegram_deinit(void)

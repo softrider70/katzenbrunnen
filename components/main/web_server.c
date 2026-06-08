@@ -774,11 +774,15 @@ static esp_err_t telegram_config_get_handler(httpd_req_t *req)
     char response[512];
     bool configured = telegram_is_configured();
     bool enabled = telegram_is_enabled();
+    int night_start = telegram_get_night_start_hour();
+    int night_end = telegram_get_night_end_hour();
 
     snprintf(response, sizeof(response),
-        "{\"configured\":%s,\"enabled\":%s}",
+        "{\"configured\":%s,\"enabled\":%s,\"night_start_hour\":%d,\"night_end_hour\":%d}",
         configured ? "true" : "false",
-        enabled ? "true" : "false");
+        enabled ? "true" : "false",
+        night_start,
+        night_end);
 
     send_json_response(req, response);
     return ESP_OK;
@@ -789,6 +793,8 @@ static esp_err_t telegram_config_post_handler(httpd_req_t *req)
     char body[512] = {0};
     char bot_token[256] = {0};
     char chat_id[64] = {0};
+    char night_start_str[8] = {0};
+    char night_end_str[8] = {0};
 
     int total_len = req->content_len;
     if (total_len <= 0 || total_len >= (int)sizeof(body)) {
@@ -813,6 +819,16 @@ static esp_err_t telegram_config_post_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
+    // Nachtzeiten parsen (optional)
+    int night_start = -1;
+    int night_end = -1;
+    if (parse_json_field(body, "night_start_hour", night_start_str, sizeof(night_start_str))) {
+        night_start = atoi(night_start_str);
+    }
+    if (parse_json_field(body, "night_end_hour", night_end_str, sizeof(night_end_str))) {
+        night_end = atoi(night_end_str);
+    }
+
     // In NVS speichern
     esp_err_t ret = telegram_save_token(bot_token);
     if (ret != ESP_OK) {
@@ -824,6 +840,14 @@ static esp_err_t telegram_config_post_handler(httpd_req_t *req)
     if (ret != ESP_OK) {
         send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to save chat ID\"}");
         return ESP_OK;
+    }
+
+    // Nachtzeiten speichern (falls angegeben)
+    if (night_start >= 0 && night_start <= 23) {
+        telegram_set_night_start_hour(night_start);
+    }
+    if (night_end >= 0 && night_end <= 23) {
+        telegram_set_night_end_hour(night_end);
     }
 
     send_json_response(req, "{\"status\":\"OK\",\"message\":\"Telegram configuration saved\"}");

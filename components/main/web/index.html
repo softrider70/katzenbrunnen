@@ -153,6 +153,17 @@ button{flex:1;min-width:90px;padding:10px;border:none;border-radius:8px;font-wei
 <span>Telegram-Nachrichten senden</span>
 </label>
 </div>
+<p style="font-size:12px;margin:20px 0 10px 0"><b>Nacht-Modus (Nachrichten puffern):</b></p>
+<div style="margin:10px 0;display:flex;gap:10px;align-items:center">
+<div style="flex:1">
+<label style="font-size:12px;font-weight:bold">Startzeit (0-23 Uhr):</label>
+<input type="number" id="night-start-hour" min="0" max="23" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px" value="23">
+</div>
+<div style="flex:1">
+<label style="font-size:12px;font-weight:bold">Stoppzeit (0-23 Uhr):</label>
+<input type="number" id="night-end-hour" min="0" max="23" style="width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px;font-size:12px" value="8">
+</div>
+</div>
 <p style="font-size:12px;margin:20px 0 10px 0"><b>Test:</b></p>
 <div class="buttons">
 <button class="btn-secondary" onclick="testTelegram()">Test-Nachricht senden</button>
@@ -427,12 +438,16 @@ fetch('/api/telegram_config').then(r=>r.json()).then(d=>{
 document.getElementById('telegram-bot-token').value=d.configured?'*** (gespeichert)':'';
 document.getElementById('telegram-chat-id').value=d.configured?'*** (gespeichert)':'';
 document.getElementById('telegram-enabled').checked=d.enabled;
+document.getElementById('night-start-hour').value=d.night_start_hour||23;
+document.getElementById('night-end-hour').value=d.night_end_hour||8;
 showMsg('telegram',d.configured?'Konfiguration geladen':'Nicht konfiguriert',false);
 }).catch(e=>showMsg('telegram','Fehler: '+e.message,true));
 }
 function saveTelegramConfig(){
 const botToken=document.getElementById('telegram-bot-token').value.trim();
 const chatId=document.getElementById('telegram-chat-id').value.trim();
+const nightStart=document.getElementById('night-start-hour').value;
+const nightEnd=document.getElementById('night-end-hour').value;
 // Nicht speichern, wenn Felder den Platzhalter enthalten
 if(botToken==='*** (gespeichert)'||chatId==='*** (gespeichert)'){
 showMsg('telegram','Bitte neue Werte eingeben (Platzhalter nicht speichern)',true);
@@ -446,7 +461,7 @@ if(!chatId){
 showMsg('telegram','Chat ID darf nicht leer sein',true);
 return;
 }
-const body=JSON.stringify({bot_token:botToken,chat_id:chatId});
+const body=JSON.stringify({bot_token:botToken,chat_id:chatId,night_start_hour:nightStart,night_end_hour:nightEnd});
 fetch('/api/telegram_config',{method:'POST',headers:{'Content-Type':'application/json'},body:body}).then(r=>r.json()).then(d=>{
 showMsg('telegram',d.message,d.status!=='OK');
 if(d.status==='OK'){

@@ -59,18 +59,44 @@ esp_err_t telegram_set_enabled(bool enabled);
 bool telegram_is_enabled(void);
 
 /**
+ * @brief Telegram-Nacht-Startzeit setzen (0-23 Uhr)
+ * @param hour Stunde (0-23)
+ * @return ESP_OK bei Erfolg, sonst Fehlercode
+ */
+esp_err_t telegram_set_night_start_hour(int hour);
+
+/**
+ * @brief Telegram-Nacht-Stoppzeit setzen (0-23 Uhr)
+ * @param hour Stunde (0-23)
+ * @return ESP_OK bei Erfolg, sonst Fehlercode
+ */
+esp_err_t telegram_set_night_end_hour(int hour);
+
+/**
+ * @brief Telegram-Nacht-Startzeit abrufen
+ * @return Stunde (0-23)
+ */
+int telegram_get_night_start_hour(void);
+
+/**
+ * @brief Telegram-Nacht-Stoppzeit abrufen
+ * @return Stunde (0-23)
+ */
+int telegram_get_night_end_hour(void);
+
+/**
  * @brief Telegram-Modul deinitialisieren
  */
 void telegram_deinit(void);
 
 /**
- * @brief Prüfen ob Nacht-Modus aktiv ist (23-8 Uhr)
+ * @brief Prüfen ob Nacht-Modus aktiv ist
  * @return true wenn Nacht-Modus, sonst false
  */
 bool telegram_is_night_mode(void);
 
 /**
- * @brief Gepufferte Nacht-Nachrichten senden (um 8 Uhr aufrufen)
+ * @brief Gepufferte Nacht-Nachrichten senden (um Stoppzeit aufrufen)
  */
 void telegram_send_night_buffer(void);
 

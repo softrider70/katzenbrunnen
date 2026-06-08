@@ -153,6 +153,17 @@ bool telegram_is_night_mode(void)
     }
 }
 
+void telegram_buffer_night_event(const char *event_text)
+{
+    if (event_text == NULL || g_night_buffer_count >= MAX_NIGHT_EVENTS) {
+        return;
+    }
+
+    strncpy(g_night_buffer[g_night_buffer_count], event_text, NIGHT_EVENT_MAX_LEN - 1);
+    g_night_buffer[g_night_buffer_count][NIGHT_EVENT_MAX_LEN - 1] = '\0';
+    g_night_buffer_count++;
+}
+
 void telegram_send_night_buffer(void)
 {
     if (g_night_buffer_count == 0) {
@@ -164,12 +175,12 @@ void telegram_send_night_buffer(void)
         return;
     }
 
-    // Zusammenfassende Nachricht erstellen
+    // Zusammenfassende Nachricht erstellen (Startzeit + Dauer)
     char message[512];
-    int pos = snprintf(message, sizeof(message), "🌙 Nacht-Ereignisse (%d):\n", g_night_buffer_count);
-    
+    int pos = snprintf(message, sizeof(message), "🌙 Nacht-Aktivität:\n");
+
     for (int i = 0; i < g_night_buffer_count && pos < (int)sizeof(message) - 1; i++) {
-        pos += snprintf(message + pos, sizeof(message) - pos, "%d. %s\n", i + 1, g_night_buffer[i]);
+        pos += snprintf(message + pos, sizeof(message) - pos, "%s\n", g_night_buffer[i]);
     }
 
     // Nachricht senden

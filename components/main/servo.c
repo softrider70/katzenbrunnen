@@ -12,6 +12,7 @@
 #include "freertos/task.h"
 #include "freertos/portmacro.h"
 #include <string.h>
+#include <time.h>
 
 static const char *TAG = "servo";
 
@@ -190,9 +191,20 @@ void servo_open_valve(void)
     ESP_LOGI(TAG, "Wasserhahn öffnen");
     servo_set_position(g_servo_config.servo_open_us);
 
-    // Telegram-Nachricht senden
+    // Telegram-Nachricht senden oder puffern (Nacht-Modus)
     if (telegram_is_configured()) {
-        telegram_send_message("💧 Wasserhahn geöffnet - Katze trinkt");
+        if (telegram_is_night_mode()) {
+            // Startzeit puffern
+            time_t now;
+            struct tm timeinfo;
+            time(&now);
+            localtime_r(&now, &timeinfo);
+            char event_text[32];
+            snprintf(event_text, sizeof(event_text), "Start: %02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+            telegram_buffer_night_event(event_text);
+        } else {
+            telegram_send_message("💧 Wasserhahn geöffnet - Katze trinkt");
+        }
     }
 
     // FET nach konfigurierbarer Zeit ausschalten (Strom sparen)
@@ -224,11 +236,18 @@ void servo_close_valve(void)
     servo_wait_with_fet(g_servo_config.fet_on_time_ms);
     gpio_set_level(GPIO_SERVO_ENABLE, 0);
 
-    // Telegram-Nachricht senden
+    // Telegram-Nachricht senden oder puffern (Nacht-Modus)
     if (telegram_is_configured()) {
-        char msg[128];
-        snprintf(msg, sizeof(msg), "🚰 Wasserhahn geschlossen - Dauer: %llu s", (unsigned long long)(duration_ms / 1000));
-        telegram_send_message(msg);
+        if (telegram_is_night_mode()) {
+            // Dauer puffern
+            char event_text[32];
+            snprintf(event_text, sizeof(event_text), "Dauer: %llu s", (unsigned long long)(duration_ms / 1000));
+            telegram_buffer_night_event(event_text);
+        } else {
+            char msg[128];
+            snprintf(msg, sizeof(msg), "🚰 Wasserhahn geschlossen - Dauer: %llu s", (unsigned long long)(duration_ms / 1000));
+            telegram_send_message(msg);
+        }
     }
 }
 

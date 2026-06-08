@@ -100,4 +100,10 @@ bool telegram_is_night_mode(void);
  */
 void telegram_send_night_buffer(void);
 
+/**
+ * @brief Nacht-Event puffern (Startzeit oder Dauer)
+ * @param event_text Event-Text im Format "HH:MM" für Start oder "HH:MM+Xs" für Dauer
+ */
+void telegram_buffer_night_event(const char *event_text);
+
 #endif // TELEGRAM_H

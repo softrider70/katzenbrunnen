@@ -140,8 +140,19 @@ static void ota_update_task(void *pvParameters)
     strncpy(ota_state.message, "Lade Firmware...", sizeof(ota_state.message) - 1);
     xSemaphoreGive(ota_mutex);
     
-    // OTA durchführen
-    ret = esp_https_ota_perform(https_ota_handle);
+    // OTA durchführen (Schleife für ESP_ERR_HTTPS_OTA_IN_PROGRESS)
+    while (1) {
+        ret = esp_https_ota_perform(https_ota_handle);
+        if (ret != ESP_ERR_HTTPS_OTA_IN_PROGRESS) {
+            break;
+        }
+        // Download läuft noch - Status aktualisieren
+        const size_t len = esp_https_ota_get_image_len_read(https_ota_handle);
+        xSemaphoreTake(ota_mutex, portMAX_DELAY);
+        snprintf(ota_state.message, sizeof(ota_state.message), "Lade Firmware... %lu bytes", (unsigned long)len);
+        xSemaphoreGive(ota_mutex);
+        ESP_LOGD(TAG, "Image bytes read: %d", len);
+    }
     
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "ESP HTTPS OTA Perform fehlgeschlagen: %s", esp_err_to_name(ret));

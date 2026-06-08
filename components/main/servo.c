@@ -83,49 +83,6 @@ esp_err_t servo_init(void)
     return ESP_OK;
 }
 
-void servo_calibrate(void)
-{
-    ESP_LOGI(TAG, "Servo-Kalibrierung gestartet");
-
-    // FET einschalten
-    gpio_set_level(GPIO_SERVO_ENABLE, 1);
-
-    // Grundposition (geschlossen) anfahren
-    ESP_LOGI(TAG, "Kalibrierung: Grundposition (geschlossen) anfahren");
-    servo_set_position(g_servo_config.servo_close_us);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));  // Konfigurierte FET-An-Zeit halten
-
-    // Position geöffnet anfahren
-    ESP_LOGI(TAG, "Kalibrierung: Position geöffnet anfahren (%lu us)", g_servo_config.servo_open_us);
-    servo_set_position(g_servo_config.servo_open_us);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));  // Konfigurierte FET-An-Zeit halten
-
-    // Wieder auf Grundposition zurückfahren
-    ESP_LOGI(TAG, "Kalibrierung: Zurück auf Grundposition");
-    servo_set_position(g_servo_config.servo_close_us);
-    vTaskDelay(pdMS_TO_TICKS(g_servo_config.fet_on_time_ms));
-
-    // FET ausschalten
-    gpio_set_level(GPIO_SERVO_ENABLE, 0);
-
-    ESP_LOGI(TAG, "Servo-Kalibrierung abgeschlossen");
-
-    // Telegram-Startup-Nachricht senden
-    if (telegram_is_configured()) {
-        char msg[256];
-        snprintf(msg, sizeof(msg),
-            "🚀 Katzenbrunnen gestartet\n"
-            "✅ Kalibrierung abgeschlossen\n"
-            "📊 Freier Heap: %lu KB\n"
-            "⚙️ Servo: %lu/%lu µs",
-            (unsigned long)(esp_get_free_heap_size() / 1024),
-            (unsigned long)g_servo_config.servo_open_us,
-            (unsigned long)g_servo_config.servo_close_us
-        );
-        telegram_send_message(msg);
-    }
-}
-
 /**
  * @brief Warten mit Watchdog-Feeding für FET-Aktivierung
  */
@@ -149,6 +106,48 @@ void servo_set_position(uint32_t pulse_us)
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
 
     ESP_LOGD(TAG, "Servo Position: %lu us", pulse_us);
+}
+
+void servo_calibrate(void)
+{
+    ESP_LOGI(TAG, "Servo-Kalibrierung gestartet");
+
+    // FET einschalten
+    gpio_set_level(GPIO_SERVO_ENABLE, 1);
+
+    // Grundposition (geschlossen) anfahren
+    ESP_LOGI(TAG, "Kalibrierung: Grundposition (geschlossen) anfahren");
+    servo_set_position(g_servo_config.servo_close_us);
+    servo_wait_with_fet(g_servo_config.fet_on_time_ms);  // Watchdog-Feeding statt blockierendem Delay
+
+    // Position geöffnet anfahren
+    ESP_LOGI(TAG, "Kalibrierung: Position geöffnet anfahren (%lu us)", g_servo_config.servo_open_us);
+    servo_set_position(g_servo_config.servo_open_us);
+    servo_wait_with_fet(g_servo_config.fet_on_time_ms);  // Watchdog-Feeding statt blockierendem Delay
+
+    // Wieder auf Grundposition zurückfahren
+    ESP_LOGI(TAG, "Kalibrierung: Zurück auf Grundposition");
+    servo_set_position(g_servo_config.servo_close_us);
+    servo_wait_with_fet(g_servo_config.fet_on_time_ms);  // Watchdog-Feeding statt blockierendem Delay
+
+    // FET ausschalten
+    gpio_set_level(GPIO_SERVO_ENABLE, 0);
+
+    ESP_LOGI(TAG, "Servo-Kalibrierung abgeschlossen");
+
+    // Telegram-Startup-Nachricht senden
+    if (telegram_is_configured()) {
+        char msg[256];
+        snprintf(msg, sizeof(msg),
+            "🚀 Katzenbrunnen gestartet\n"
+            "✅ Kalibrierung abgeschlossen\n"
+            "📊 Freier Heap: %lu KB\n"
+            "⚙️ Servo: %lu/%lu µs",
+            (unsigned long)(esp_get_free_heap_size() / 1024),
+            g_servo_config.servo_open_us,
+            g_servo_config.servo_close_us);
+        telegram_send_message(msg);
+    }
 }
 
 void servo_set_position_with_fet(uint32_t pulse_us, uint32_t fet_duration_ms)

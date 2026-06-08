@@ -320,6 +320,7 @@ showMsg('ota','Status aktualisiert',false);
 }
 let otaStarting=false;
 function startOta(){
+console.log('startOta aufgerufen');
 if(otaStarting){
 showMsg('ota','OTA läuft bereits',true);
 return;
@@ -333,6 +334,7 @@ return;
 }
 otaStarting=true;
 const btn=document.getElementById('ota-start-btn');
+console.log('Sende OTA-Request');
 fetch('/api/ota/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url})}).then(r=>r.json()).then(d=>{
 showMsg('ota',d.message,d.status!=='OK');
 checkOtaStatus();

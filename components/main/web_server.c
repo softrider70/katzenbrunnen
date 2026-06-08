@@ -668,6 +668,23 @@ static esp_err_t captive_portal_handler(httpd_req_t *req)
 }
 
 // ============================================================================
+// iOS Captive Portal Handler: /hotspot-detect.html
+// ============================================================================
+static esp_err_t hotspot_detect_handler(httpd_req_t *req)
+{
+    // Auf Hauptseite weiterleiten
+    char redirect_url[128];
+    snprintf(redirect_url, sizeof(redirect_url), "http://%s/", WIFI_AP_IP);
+
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", redirect_url);
+    httpd_resp_send(req, NULL, 0);
+
+    ESP_LOGI(TAG, "iOS Captive Portal Redirect: /hotspot-detect.html -> %s", redirect_url);
+    return ESP_OK;
+}
+
+// ============================================================================
 // URI Handler Registration
 // ============================================================================
 static httpd_uri_t status_uri = {
@@ -1011,13 +1028,20 @@ static httpd_uri_t captive_portal_uri = {
     .user_ctx = NULL
 };
 
+static httpd_uri_t hotspot_detect_uri = {
+    .uri = "/hotspot-detect.html",
+    .method = HTTP_GET,
+    .handler = hotspot_detect_handler,
+    .user_ctx = NULL
+};
+
 esp_err_t web_server_init(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = WEB_SERVER_PORT;
     config.lru_purge_enable = true;
     config.stack_size = TASK_STACK_WEB;     // httpd-Task-Stack vergrößern
-    config.max_uri_handlers = 20;           // 19 Handler + Reserve (sonst scheitert Captive-Portal-Catch-All)
+    config.max_uri_handlers = 21;           // 20 Handler + Reserve (sonst scheitert Captive-Portal-Catch-All)
     config.uri_match_fn = httpd_uri_match_wildcard;  // Wildcard-Matching für Catch-All "/*" (Captive Portal)
     config.core_id = TASK_CORE_NETWORK;     // httpd auf Netzwerk-Core
     
@@ -1048,6 +1072,7 @@ esp_err_t web_server_init(void)
     httpd_register_uri_handler(server, &telegram_enabled_post_uri);
     httpd_register_uri_handler(server, &telegram_night_hours_post_uri);
     httpd_register_uri_handler(server, &stacks_uri);
+    httpd_register_uri_handler(server, &hotspot_detect_uri);  // iOS Captive Portal
     httpd_register_uri_handler(server, &captive_portal_uri);  // Muss zuletzt registriert werden (Catch-All)
     
     ESP_LOGI(TAG, "Web-Server gestartet auf Port %d", WEB_SERVER_PORT);

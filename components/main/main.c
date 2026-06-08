@@ -13,6 +13,7 @@
 #include "esp_sntp.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
+#include "version.h"
 #include "config.h"
 #include "pir.h"
 #include "servo.h"
@@ -193,6 +194,7 @@ static SemaphoreHandle_t state_mutex = NULL;
  */
 static esp_err_t init_hardware(void)
 {
+    ESP_LOGI(TAG, "init_hardware() gestartet");
     esp_err_t ret = ESP_OK;
     
     // GPIO Konfiguration
@@ -509,6 +511,7 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "Katzenbrunnen ESP32-S3 gestartet");
     ESP_LOGI(TAG, "Version: %s", APP_VERSION);
+    ESP_LOGI(TAG, "Build: %s", VERSION_STRING);
     
     // NVS zuerst initialisieren (WiFi/esp_wifi_init benötigt NVS)
     if (init_nvs() != ESP_OK) {
@@ -517,10 +520,12 @@ void app_main(void)
     }
     
     // Hardware initialisieren (inkl. WiFi/Web/OTA)
+    ESP_LOGI(TAG, "Rufe init_hardware() auf...");
     if (init_hardware() != ESP_OK) {
         ESP_LOGE(TAG, "Hardware-Initialisierung fehlgeschlagen");
         return;
     }
+    ESP_LOGI(TAG, "init_hardware() erfolgreich abgeschlossen");
 
     // Telegram initialisieren
     if (telegram_init() != ESP_OK) {

@@ -19,7 +19,8 @@ static const char *TAG = "servo";
 static bool valve_open = false;
 static SemaphoreHandle_t servo_mutex = NULL;
 static portMUX_TYPE servo_mux = portMUX_INITIALIZER_UNLOCKED;  // Critical Section für emergency_close
-static uint64_t valve_open_time = 0;  // Zeitpunkt wann Ventil geöffnet wurde
+static uint64_t valve_open_time = 0;  // Zeitpunkt wann Ventil geöffnet wurde (µs)
+static time_t valve_open_local_time = 0;  // Lokale Zeit wann Ventil geöffnet wurde
 
 esp_err_t servo_init(void)
 {
@@ -191,20 +192,12 @@ void servo_open_valve(void)
     ESP_LOGI(TAG, "Wasserhahn öffnen");
     servo_set_position(g_servo_config.servo_open_us);
 
-    // Telegram-Nachricht senden oder puffern (Nacht-Modus)
-    if (telegram_is_configured()) {
-        if (telegram_is_night_mode()) {
-            // Startzeit puffern
-            time_t now;
-            struct tm timeinfo;
-            time(&now);
-            localtime_r(&now, &timeinfo);
-            char event_text[32];
-            snprintf(event_text, sizeof(event_text), "Start: %02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
-            telegram_buffer_night_event(event_text);
-        } else {
-            telegram_send_message("💧 Wasserhahn geöffnet - Katze trinkt");
-        }
+    // Lokale Zeit speichern für Nacht-Buffer
+    time(&valve_open_local_time);
+
+    // Telegram-Nachricht senden (nicht puffern)
+    if (telegram_is_configured() && !telegram_is_night_mode()) {
+        telegram_send_message("💧 Wasserhahn geöffnet - Katze trinkt");
     }
 
     // FET nach konfigurierbarer Zeit ausschalten (Strom sparen)
@@ -239,9 +232,11 @@ void servo_close_valve(void)
     // Telegram-Nachricht senden oder puffern (Nacht-Modus)
     if (telegram_is_configured()) {
         if (telegram_is_night_mode()) {
-            // Dauer puffern
+            // Startzeit + Dauer im Format "hh:mi+ss" puffern
+            struct tm timeinfo;
+            localtime_r(&valve_open_local_time, &timeinfo);
             char event_text[32];
-            snprintf(event_text, sizeof(event_text), "Dauer: %llu s", (unsigned long long)(duration_ms / 1000));
+            snprintf(event_text, sizeof(event_text), "%02d:%02d+%llu", timeinfo.tm_hour, timeinfo.tm_min, (unsigned long long)(duration_ms / 1000));
             telegram_buffer_night_event(event_text);
         } else {
             char msg[128];

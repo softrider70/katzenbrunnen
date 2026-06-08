@@ -241,7 +241,6 @@ static esp_err_t ota_status_handler(httpd_req_t *req)
 // ============================================================================
 static esp_err_t ota_start_handler(httpd_req_t *req)
 {
-    ESP_LOGI(TAG, "OTA-Start-Handler aufgerufen");
     char body[320] = {0};
     char url[192] = {0};
 
@@ -285,9 +284,7 @@ static esp_err_t ota_start_handler(httpd_req_t *req)
     strncpy(url, url_start, url_len);
     url[url_len] = '\0';
 
-    ESP_LOGI(TAG, "OTA-Start: URL=%s", url);
     esp_err_t ret = ota_start_update(url);
-    ESP_LOGI(TAG, "OTA-Start: Rückgabe=%s", esp_err_to_name(ret));
     if (ret != ESP_OK) {
         if (ret == ESP_ERR_INVALID_STATE) {
             send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"OTA bereits aktiv\"}");

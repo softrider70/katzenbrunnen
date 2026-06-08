@@ -246,10 +246,16 @@ static esp_err_t init_hardware(void)
     esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_ip_event_handler, NULL);
 
     ret = web_server_init();
-    if (ret != ESP_OK) return ret;
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Web-Server Init fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
 
     ret = web_server_start();
-    if (ret != ESP_OK) return ret;
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Web-Server Start fehlgeschlagen: %s", esp_err_to_name(ret));
+        return ret;
+    }
 
     ret = ota_init();
     if (ret != ESP_OK) return ret;

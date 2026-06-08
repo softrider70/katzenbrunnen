@@ -1082,8 +1082,14 @@ esp_err_t web_server_init(void)
 esp_err_t web_server_start(void)
 {
     if (server == NULL) {
-        return web_server_init();
+        ESP_LOGI(TAG, "Web-Server ist NULL, initialisiere...");
+        esp_err_t ret = web_server_init();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Web-Server Initialisierung fehlgeschlagen: %s", esp_err_to_name(ret));
+        }
+        return ret;
     }
+    ESP_LOGI(TAG, "Web-Server bereits gestartet");
     return ESP_OK;
 }
 

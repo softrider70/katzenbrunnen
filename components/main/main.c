@@ -58,6 +58,11 @@ static void initialize_sntp(void)
         return;
     }
     ESP_LOGI(TAG, "Initialisiere SNTP");
+    
+    // Zeitzone auf Berlin einstellen
+    setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0", 1);
+    tzset();
+    
     esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
     esp_sntp_setservername(0, "pool.ntp.org");
     sntp_set_time_sync_notification_cb(time_sync_notification_cb);

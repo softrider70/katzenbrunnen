@@ -19,7 +19,7 @@ static const char *TAG = "telegram";
 #define TELEGRAM_SEND_ENDPOINT "/sendMessage"
 
 // Nacht-Modus Konfiguration
-#define NIGHT_MODE_START_HOUR 23
+#define NIGHT_MODE_START_HOUR 18  // Zum Testen auf 18 Uhr gesetzt
 #define NIGHT_MODE_END_HOUR 8
 #define MAX_NIGHT_EVENTS 6
 #define NIGHT_EVENT_MAX_LEN 32  // "HH:MM+Dauer" (z.B. "23:45+5s")

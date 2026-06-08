@@ -413,9 +413,10 @@ static void control_task(void *pvParameters)
         struct tm timeinfo;
         time(&now_time);
         localtime_r(&now_time, &timeinfo);
-        
+
         int night_end_hour = telegram_get_night_end_hour();
-        if (timeinfo.tm_hour == night_end_hour && timeinfo.tm_min == 0 && timeinfo.tm_mday != last_night_send_day) {
+        // Senden wenn Stoppzeit erreicht oder überschritten (aber nur einmal pro Tag)
+        if (!telegram_is_night_mode() && timeinfo.tm_mday != last_night_send_day) {
             telegram_send_night_buffer();
             last_night_send_day = timeinfo.tm_mday;
         }

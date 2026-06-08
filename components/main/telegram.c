@@ -450,7 +450,7 @@ esp_err_t telegram_set_night_start_hour(int hour)
 
     ret = nvs_open(NVS_TELEGRAM_NAMESPACE, NVS_READWRITE, &nvs_handle);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "NVS öffnen fehlgeschlagen");
+        ESP_LOGE(TAG, "NVS öffnen fehlgeschlagen: %s", esp_err_to_name(ret));
         return ret;
     }
 
@@ -460,7 +460,11 @@ esp_err_t telegram_set_night_start_hour(int hour)
         if (ret == ESP_OK) {
             g_night_start_hour = hour;
             ESP_LOGI(TAG, "Nacht-Startzeit gespeichert: %d Uhr", hour);
+        } else {
+            ESP_LOGE(TAG, "NVS commit fehlgeschlagen: %s", esp_err_to_name(ret));
         }
+    } else {
+        ESP_LOGE(TAG, "NVS set_i8 fehlgeschlagen: %s", esp_err_to_name(ret));
     }
 
     nvs_close(nvs_handle);
@@ -479,7 +483,7 @@ esp_err_t telegram_set_night_end_hour(int hour)
 
     ret = nvs_open(NVS_TELEGRAM_NAMESPACE, NVS_READWRITE, &nvs_handle);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "NVS öffnen fehlgeschlagen");
+        ESP_LOGE(TAG, "NVS öffnen fehlgeschlagen: %s", esp_err_to_name(ret));
         return ret;
     }
 
@@ -489,7 +493,11 @@ esp_err_t telegram_set_night_end_hour(int hour)
         if (ret == ESP_OK) {
             g_night_end_hour = hour;
             ESP_LOGI(TAG, "Nacht-Stoppzeit gespeichert: %d Uhr", hour);
+        } else {
+            ESP_LOGE(TAG, "NVS commit fehlgeschlagen: %s", esp_err_to_name(ret));
         }
+    } else {
+        ESP_LOGE(TAG, "NVS set_i8 fehlgeschlagen: %s", esp_err_to_name(ret));
     }
 
     nvs_close(nvs_handle);

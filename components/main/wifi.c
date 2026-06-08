@@ -510,6 +510,11 @@ esp_err_t wifi_reset_credentials(void)
     has_sta_credentials = false;
     xSemaphoreGive(wifi_mutex);
 
+    // WiFi neu starten um in den AP-Modus zu wechseln
+    esp_wifi_stop();
+    vTaskDelay(pdMS_TO_TICKS(DELAY_500MS_MS));
+    esp_wifi_start();
+
     ESP_LOGI(TAG, "WiFi-Credentials gelöscht, AP-Modus wird erzwungen");
     return ESP_OK;
 }

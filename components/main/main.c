@@ -42,6 +42,7 @@ servo_config_t g_servo_config = {
 // SNTP Zeit-Synchronisation
 static bool sntp_initialized = false;
 static bool calibration_pending = false;
+static int last_night_send_day = -1;  // Letzter Tag, an dem Nacht-Nachrichten gesendet wurden
 
 static void time_sync_notification_cb(struct timeval *tv)
 {
@@ -389,6 +390,17 @@ static void control_task(void *pvParameters)
         if (calibration_pending) {
             calibration_pending = false;
             servo_calibrate();
+        }
+
+        // Nacht-Modus: Um 8 Uhr gepufferte Nachrichten senden
+        time_t now_time;
+        struct tm timeinfo;
+        time(&now_time);
+        localtime_r(&now_time, &timeinfo);
+        
+        if (timeinfo.tm_hour == 8 && timeinfo.tm_min == 0 && timeinfo.tm_mday != last_night_send_day) {
+            telegram_send_night_buffer();
+            last_night_send_day = timeinfo.tm_mday;
         }
 
         if (!valve_open) {

@@ -3,6 +3,7 @@
 #include "esp_log.h"
 #include "esp_http_client.h"
 #include "esp_crt_bundle.h"
+#include "esp_sntp.h"
 #include <string.h>
 
 static const char *TAG = "telegram";
@@ -17,10 +18,20 @@ static const char *TAG = "telegram";
 #define TELEGRAM_API_URL "https://api.telegram.org/bot"
 #define TELEGRAM_SEND_ENDPOINT "/sendMessage"
 
+// Nacht-Modus Konfiguration
+#define NIGHT_MODE_START_HOUR 23
+#define NIGHT_MODE_END_HOUR 8
+#define MAX_NIGHT_EVENTS 6
+#define NIGHT_EVENT_MAX_LEN 32  // "HH:MM+Dauer" (z.B. "23:45+5s")
+
 // Lokale Speicher für Token und Chat ID
 static char g_bot_token[256] = {0};
 static char g_chat_id[64] = {0};
 static bool g_enabled = true;  // Standardmäßig aktiviert
+
+// Nacht-Modus Puffer
+static char g_night_buffer[MAX_NIGHT_EVENTS][NIGHT_EVENT_MAX_LEN] = {0};
+static int g_night_buffer_count = 0;
 
 /**
  * @brief HTTP Event Handler für Telegram API
@@ -101,6 +112,44 @@ esp_err_t telegram_init(void)
     return ESP_OK;
 }
 
+bool telegram_is_night_mode(void)
+{
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+
+    int hour = timeinfo.tm_hour;
+    return (hour >= NIGHT_MODE_START_HOUR || hour < NIGHT_MODE_END_HOUR);
+}
+
+void telegram_send_night_buffer(void)
+{
+    if (g_night_buffer_count == 0) {
+        return;  // Keine gepufferten Nachrichten
+    }
+
+    if (!telegram_is_configured() || !g_enabled) {
+        g_night_buffer_count = 0;  // Puffer leeren
+        return;
+    }
+
+    // Zusammenfassende Nachricht erstellen
+    char message[512];
+    int pos = snprintf(message, sizeof(message), "🌙 Nacht-Ereignisse (%d):\n", g_night_buffer_count);
+    
+    for (int i = 0; i < g_night_buffer_count && pos < (int)sizeof(message) - 1; i++) {
+        pos += snprintf(message + pos, sizeof(message) - pos, "%d. %s\n", i + 1, g_night_buffer[i]);
+    }
+
+    // Nachricht senden
+    telegram_send_message(message);
+
+    // Puffer leeren
+    g_night_buffer_count = 0;
+    memset(g_night_buffer, 0, sizeof(g_night_buffer));
+}
+
 esp_err_t telegram_send_message(const char *message)
 {
     if (!g_enabled) {
@@ -116,6 +165,25 @@ esp_err_t telegram_send_message(const char *message)
     if (message == NULL || strlen(message) == 0) {
         ESP_LOGE(TAG, "Leere Nachricht");
         return ESP_ERR_INVALID_ARG;
+    }
+
+    // Nacht-Modus: Nachricht puffern statt senden
+    if (telegram_is_night_mode()) {
+        if (g_night_buffer_count < MAX_NIGHT_EVENTS) {
+            time_t now;
+            struct tm timeinfo;
+            time(&now);
+            localtime_r(&now, &timeinfo);
+
+            // Format: "HH:MM+Dauer" (Dauer aus Nachricht extrahieren)
+            snprintf(g_night_buffer[g_night_buffer_count], NIGHT_EVENT_MAX_LEN,
+                "%02d:%02d+%s", timeinfo.tm_hour, timeinfo.tm_min, message);
+            g_night_buffer_count++;
+            ESP_LOGI(TAG, "Nacht-Modus: Nachricht gepuffert (%d/%d)", g_night_buffer_count, MAX_NIGHT_EVENTS);
+        } else {
+            ESP_LOGW(TAG, "Nacht-Modus: Puffer voll, Nachricht ignoriert");
+        }
+        return ESP_OK;
     }
 
     // URL zusammenbauen

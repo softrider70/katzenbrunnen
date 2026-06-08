@@ -63,4 +63,15 @@ bool telegram_is_enabled(void);
  */
 void telegram_deinit(void);
 
+/**
+ * @brief Prüfen ob Nacht-Modus aktiv ist (23-8 Uhr)
+ * @return true wenn Nacht-Modus, sonst false
+ */
+bool telegram_is_night_mode(void);
+
+/**
+ * @brief Gepufferte Nacht-Nachrichten senden (um 8 Uhr aufrufen)
+ */
+void telegram_send_night_buffer(void);
+
 #endif // TELEGRAM_H

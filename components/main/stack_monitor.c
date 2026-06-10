@@ -72,9 +72,19 @@ static void update_stack_info(void)
 static void stack_monitor_task(void *pvParameters)
 {
     ESP_LOGI(TAG, "Stack-Monitor-Task gestartet (Core %d)", xPortGetCoreID());
-    
+
     while (1) {
         update_stack_info();
+
+        // Stack-Status loggen (nur Warnungen/Kritische)
+        for (int i = 0; i < stack_info_count; i++) {
+            if (stack_info[i].critical) {
+                ESP_LOGE(TAG, "STACK CRITICAL: %s - %lu bytes frei", stack_info[i].task_name, (unsigned long)stack_info[i].stack_free);
+            } else if (stack_info[i].warning) {
+                ESP_LOGW(TAG, "STACK WARNING: %s - %lu bytes frei", stack_info[i].task_name, (unsigned long)stack_info[i].stack_free);
+            }
+        }
+
         vTaskDelay(pdMS_TO_TICKS(STACK_MONITOR_INTERVAL_MS));
     }
 }

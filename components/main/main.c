@@ -457,6 +457,24 @@ static void control_task(void *pvParameters)
         }
 
         watchdog_feed();
+
+        // Debug-Logging alle 5 Minuten (600 Zyklen à 500ms)
+        static uint32_t debug_cycle = 0;
+        debug_cycle++;
+        if (debug_cycle >= 600) {
+            debug_cycle = 0;
+            ESP_LOGI(TAG, "=== DEBUG STATUS ===");
+            ESP_LOGI(TAG, "Heap: %lu bytes frei", (unsigned long long)esp_get_free_heap_size());
+            ESP_LOGI(TAG, "Min Heap: %lu bytes", (unsigned long long)esp_get_minimum_free_heap_size());
+            ESP_LOGI(TAG, "Uptime: %llu ms", (unsigned long long)(esp_timer_get_time() / 1000));
+            time_t now;
+            struct tm timeinfo;
+            time(&now);
+            localtime_r(&now, &timeinfo);
+            ESP_LOGI(TAG, "Zeit: %02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+            ESP_LOGI(TAG, "Activation Count: %lu", activation_count);
+        }
+
         vTaskDelay(pdMS_TO_TICKS(DELAY_500MS_MS));
     }
 }

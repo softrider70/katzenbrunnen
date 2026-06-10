@@ -187,7 +187,9 @@ void telegram_send_night_buffer(void)
     int pos = snprintf(message, sizeof(message), "🌙 Nacht-Aktivität:\n");
 
     for (int i = 0; i < g_night_buffer_count && pos < (int)sizeof(message) - 1; i++) {
-        pos += snprintf(message + pos, sizeof(message) - pos, "%s\n", g_night_buffer[i]);
+        int remaining = sizeof(message) - pos;
+        if (remaining <= 1) break;  // Kein Platz mehr
+        pos += snprintf(message + pos, remaining, "%s\n", g_night_buffer[i]);
     }
 
     ESP_LOGI(TAG, "Nacht-Nachricht: %s", message);

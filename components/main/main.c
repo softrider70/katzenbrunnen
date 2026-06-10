@@ -43,6 +43,7 @@ servo_config_t g_servo_config = {
 // SNTP Zeit-Synchronisation
 static bool sntp_initialized = false;
 static bool calibration_pending = false;
+static bool calibration_done = false;  // Kalibrierung nur beim ersten Mal ausführen
 static int last_night_send_day = -1;  // Letzter Tag, an dem Nacht-Nachrichten gesendet wurden
 
 static void time_sync_notification_cb(struct timeval *tv)
@@ -402,9 +403,10 @@ static void control_task(void *pvParameters)
         bool motion = pir_get_gpio_level();
         bool valve_open = servo_is_valve_open();
 
-        // Kalibrierung ausführen wenn ausgelöst (nicht im Interrupt-Kontext)
-        if (calibration_pending) {
+        // Kalibrierung ausführen wenn ausgelöst (nur beim ersten Mal nach Boot)
+        if (calibration_pending && !calibration_done) {
             calibration_pending = false;
+            calibration_done = true;
             servo_calibrate();
         }
 

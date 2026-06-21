@@ -163,8 +163,14 @@ esp_err_t wifi_init(void)
     }
 
     // Hostname setzen
-    esp_netif_set_hostname(sta_netif, WIFI_HOSTNAME);
-    esp_netif_set_hostname(ap_netif, WIFI_HOSTNAME);
+    ret = esp_netif_set_hostname(sta_netif, WIFI_HOSTNAME);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "STA Hostname-Setzung fehlgeschlagen: %s", esp_err_to_name(ret));
+    }
+    ret = esp_netif_set_hostname(ap_netif, WIFI_HOSTNAME);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "AP Hostname-Setzung fehlgeschlagen: %s", esp_err_to_name(ret));
+    }
     ESP_LOGI(TAG, "Hostname gesetzt: %s", WIFI_HOSTNAME);
     
     // WiFi-Initialisierung
@@ -287,8 +293,14 @@ esp_err_t wifi_init(void)
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "mDNS-Initialisierung fehlgeschlagen: %s", esp_err_to_name(ret));
     } else {
-        mdns_hostname_set(WIFI_HOSTNAME);
-        mdns_instance_name_set("Katzenbrunnen");
+        ret = mdns_hostname_set(WIFI_HOSTNAME);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "mDNS Hostname-Setzung fehlgeschlagen: %s", esp_err_to_name(ret));
+        }
+        ret = mdns_instance_name_set("Katzenbrunnen");
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "mDNS Instance-Name-Setzung fehlgeschlagen: %s", esp_err_to_name(ret));
+        }
         ESP_LOGI(TAG, "mDNS gestartet: http://%s.local", WIFI_HOSTNAME);
     }
 
@@ -384,14 +396,14 @@ int8_t wifi_get_rssi(void)
 void wifi_get_ip(char *ip_str)
 {
     if (!wifi_is_connected()) {
-        strcpy(ip_str, "Not connected");
+        snprintf(ip_str, 16, "Not connected");
         return;
     }
     
     esp_netif_ip_info_t ip_info;
     esp_err_t ret = esp_netif_get_ip_info(sta_netif, &ip_info);
     if (ret != ESP_OK) {
-        strcpy(ip_str, "Error");
+        snprintf(ip_str, 16, "Error");
         return;
     }
     
@@ -527,6 +539,9 @@ esp_err_t wifi_reset_credentials(void)
 
 void wifi_module_deinit(void)
 {
+    // mDNS-Ressourcen freigeben
+    mdns_deinit();
+
     // Mutex löschen
     if (wifi_mutex != NULL) {
         vSemaphoreDelete(wifi_mutex);

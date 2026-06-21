@@ -1,6 +1,8 @@
 # Build-Artefakte
 build/
 build_*/
+managed_components/
+dependencies.lock
 
 # IDE-Konfiguration
 .vscode/
@@ -10,6 +12,7 @@ build_*/
 # ESP-IDF
 sdkconfig
 sdkconfig.old
+sdkconfig.defaults.*
 
 # Build-Metadaten
 .last_version

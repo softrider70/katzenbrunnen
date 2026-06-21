@@ -80,6 +80,8 @@
 #define TASK_STACK_APP          8192    // Hauptanwendungs-Task Stack
 #define TASK_STACK_CONTROL      16384   // Steuerungs-Task Stack
 #define TASK_STACK_HEAP         4096    // Heap-Monitor-Task Stack
+#define TASK_STACK_DNS          4096    // DNS-Server-Task Stack
+#define TASK_STACK_OTA_HEALTH   2048    // OTA Health-Check-Task Stack
 
 // Task Priorities (0-24, higher = more important)
 #define TASK_PRIO_PIR           5       // PIR-Task Priorität
@@ -89,6 +91,8 @@
 #define TASK_PRIO_WIFI          2       // WiFi-Task Priorität
 #define TASK_PRIO_OTA           1       // OTA-Task Priorität
 #define TASK_PRIO_APP           3       // Hauptanwendungs-Task Priorität
+#define TASK_PRIO_DNS           5       // DNS-Server-Task Priorität
+#define TASK_PRIO_OTA_HEALTH    1       // OTA Health-Check-Task Priorität
 
 // Task Core Affinity
 #define TASK_CORE_CONTROL        0       // Core 0 für Steuerungsaufgaben
@@ -170,7 +174,7 @@
 // ============================================================================
 #define NVS_NAMESPACE "katzenbrunnen"
 #define NVS_STORE_NAME "config"
-#define NVS_ACTIVATION_COUNT_KEY "activation_cycles"
+#define NVS_ACTIVATION_COUNT_KEY "activ_cycles"
 #define NVS_LAST_TRIGGER_KEY "last_trigger"
 #define NVS_KEY_WIFI_SSID "wifi_ssid"
 #define NVS_KEY_WIFI_PASS "wifi_pass"

@@ -108,7 +108,7 @@ static void ota_update_task(void *pvParameters)
         .buffer_size = 1024,
         .buffer_size_tx = 1024,
         .crt_bundle_attach = esp_crt_bundle_attach,
-        .skip_cert_common_name_check = true,
+        .skip_cert_common_name_check = false,
     };
     
     // HTTPS OTA Konfiguration
@@ -149,9 +149,9 @@ static void ota_update_task(void *pvParameters)
         // Download läuft noch - Status aktualisieren
         const size_t len = esp_https_ota_get_image_len_read(https_ota_handle);
         xSemaphoreTake(ota_mutex, portMAX_DELAY);
-        snprintf(ota_state.message, sizeof(ota_state.message), "Lade Firmware... %lu bytes", (unsigned long)len);
+        snprintf(ota_state.message, sizeof(ota_state.message), "Lade Firmware... %u bytes", (unsigned int)len);
         xSemaphoreGive(ota_mutex);
-        ESP_LOGD(TAG, "Image bytes read: %d", len);
+        ESP_LOGD(TAG, "Image bytes read: %u", (unsigned int)len);
     }
     
     if (ret != ESP_OK) {
@@ -247,9 +247,9 @@ esp_err_t ota_start_task(void)
     BaseType_t ret = xTaskCreatePinnedToCore(
         ota_health_check_task,
         "ota_health_check",
-        2048,
+        TASK_STACK_OTA_HEALTH,
         NULL,
-        1,
+        TASK_PRIO_OTA_HEALTH,
         &ota_health_check_task_handle,
         TASK_CORE_CONTROL
     );
@@ -331,7 +331,7 @@ esp_err_t ota_start_update(const char *url)
     return ESP_OK;
 }
 
-esp_err_t ota_get_status(bool *in_progress, bool *last_result_ok, char *phase, char *message)
+esp_err_t ota_get_status(bool *in_progress, bool *last_result_ok, char *phase, size_t phase_size, char *message, size_t message_size)
 {
     if (ota_mutex == NULL) {
         return ESP_FAIL;
@@ -340,8 +340,14 @@ esp_err_t ota_get_status(bool *in_progress, bool *last_result_ok, char *phase, c
     xSemaphoreTake(ota_mutex, portMAX_DELAY);
     if (in_progress) *in_progress = ota_state.in_progress;
     if (last_result_ok) *last_result_ok = ota_state.last_result_ok;
-    if (phase) strncpy(phase, ota_state.phase, 31);
-    if (message) strncpy(message, ota_state.message, 63);
+    if (phase && phase_size > 0) {
+        strncpy(phase, ota_state.phase, phase_size - 1);
+        phase[phase_size - 1] = '\0';
+    }
+    if (message && message_size > 0) {
+        strncpy(message, ota_state.message, message_size - 1);
+        message[message_size - 1] = '\0';
+    }
     xSemaphoreGive(ota_mutex);
     
     return ESP_OK;
@@ -350,10 +356,10 @@ esp_err_t ota_get_status(bool *in_progress, bool *last_result_ok, char *phase, c
 esp_err_t ota_rollback(void)
 {
     const esp_partition_t *running = esp_ota_get_running_partition();
-    esp_ota_img_states_t ota_state;
+    esp_ota_img_states_t img_state;
     
-    if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK) {
-        if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
+    if (esp_ota_get_state_partition(running, &img_state) == ESP_OK) {
+        if (img_state == ESP_OTA_IMG_PENDING_VERIFY) {
             // Rollback durchführen
             ESP_LOGI(TAG, "Führe Rollback durch");
             esp_ota_mark_app_invalid_rollback_and_reboot();

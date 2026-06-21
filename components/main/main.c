@@ -466,15 +466,18 @@ static void control_task(void *pvParameters)
         if (debug_cycle >= 600) {
             debug_cycle = 0;
             ESP_LOGI(TAG, "=== DEBUG STATUS ===");
-            ESP_LOGI(TAG, "Heap: %lu bytes frei", (unsigned long long)esp_get_free_heap_size());
-            ESP_LOGI(TAG, "Min Heap: %lu bytes", (unsigned long long)esp_get_minimum_free_heap_size());
+            ESP_LOGI(TAG, "Heap: %llu bytes frei", (unsigned long long)esp_get_free_heap_size());
+            ESP_LOGI(TAG, "Min Heap: %llu bytes", (unsigned long long)esp_get_minimum_free_heap_size());
             ESP_LOGI(TAG, "Uptime: %llu ms", (unsigned long long)(esp_timer_get_time() / 1000));
             time_t now;
             struct tm timeinfo;
             time(&now);
             localtime_r(&now, &timeinfo);
             ESP_LOGI(TAG, "Zeit: %02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-            ESP_LOGI(TAG, "Activation Count: %lu", activation_count);
+            xSemaphoreTake(state_mutex, portMAX_DELAY);
+            uint32_t count = activation_count;
+            xSemaphoreGive(state_mutex);
+            ESP_LOGI(TAG, "Activation Count: %lu", (unsigned long)count);
         }
 
         vTaskDelay(pdMS_TO_TICKS(DELAY_500MS_MS));

@@ -28,11 +28,13 @@ esp_err_t ota_start_update(const char *url);
  * @brief OTA-Status abrufen
  * @param in_progress Ausgabe: OTA läuft
  * @param last_result_ok Ausgabe: Letztes Ergebnis OK
- * @param phase Ausgabe-Buffer für Phase (mindestens 32 Bytes)
- * @param message Ausgabe-Buffer für Nachricht (mindesten 64 Bytes)
+ * @param phase Ausgabe-Buffer für Phase
+ * @param phase_size Größe des phase-Puffers
+ * @param message Ausgabe-Buffer für Nachricht
+ * @param message_size Größe des message-Puffers
  * @return ESP_OK bei Erfolg, Fehlercode sonst
  */
-esp_err_t ota_get_status(bool *in_progress, bool *last_result_ok, char *phase, char *message);
+esp_err_t ota_get_status(bool *in_progress, bool *last_result_ok, char *phase, size_t phase_size, char *message, size_t message_size);
 
 /**
  * @brief OTA-Rollback ausführen

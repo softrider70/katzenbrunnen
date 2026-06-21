@@ -212,7 +212,7 @@ static esp_err_t ota_status_handler(httpd_req_t *req)
     char phase[32] = {0};
     char message[64] = {0};
 
-    ota_get_status(&in_progress, &last_result_ok, phase, message);
+    ota_get_status(&in_progress, &last_result_ok, phase, sizeof(phase), message, sizeof(message));
 
     char json_response[256];
     snprintf(json_response, sizeof(json_response),
@@ -890,7 +890,7 @@ static esp_err_t telegram_test_handler(httpd_req_t *req)
 static esp_err_t telegram_enabled_post_handler(httpd_req_t *req)
 {
     char body[128] = {0};
-    bool enabled;
+    uint32_t enabled_val = 0;
 
     int total_len = req->content_len;
     if (total_len <= 0 || total_len >= (int)sizeof(body)) {
@@ -904,8 +904,8 @@ static esp_err_t telegram_enabled_post_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    if (parse_json_number(body, "enabled", (uint32_t*)&enabled)) {
-        esp_err_t ret = telegram_set_enabled(enabled);
+    if (parse_json_number(body, "enabled", &enabled_val)) {
+        esp_err_t ret = telegram_set_enabled((bool)enabled_val);
         if (ret == ESP_OK) {
             send_json_response(req, "{\"status\":\"OK\",\"message\":\"Telegram enabled status updated\"}");
         } else {
@@ -920,8 +920,8 @@ static esp_err_t telegram_enabled_post_handler(httpd_req_t *req)
 static esp_err_t telegram_night_hours_post_handler(httpd_req_t *req)
 {
     char body[128] = {0};
-    int night_start = -1;
-    int night_end = -1;
+    uint32_t night_start = 0;
+    uint32_t night_end = 0;
 
     int total_len = req->content_len;
     if (total_len <= 0 || total_len >= (int)sizeof(body)) {
@@ -935,8 +935,8 @@ static esp_err_t telegram_night_hours_post_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    bool has_start = parse_json_number(body, "night_start_hour", (uint32_t*)&night_start);
-    bool has_end = parse_json_number(body, "night_end_hour", (uint32_t*)&night_end);
+    bool has_start = parse_json_number(body, "night_start_hour", &night_start);
+    bool has_end = parse_json_number(body, "night_end_hour", &night_end);
 
     if (!has_start && !has_end) {
         send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Missing night_start_hour or night_end_hour\"}");
@@ -945,11 +945,11 @@ static esp_err_t telegram_night_hours_post_handler(httpd_req_t *req)
 
     esp_err_t ret = ESP_OK;
     if (has_start) {
-        if (night_start < 0 || night_start > 23) {
+        if (night_start > 23) {
             send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Invalid night_start_hour (must be 0-23)\"}");
             return ESP_OK;
         }
-        ret = telegram_set_night_start_hour(night_start);
+        ret = telegram_set_night_start_hour((int)night_start);
         if (ret != ESP_OK) {
             send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to save night_start_hour\"}");
             return ESP_OK;
@@ -957,11 +957,11 @@ static esp_err_t telegram_night_hours_post_handler(httpd_req_t *req)
     }
 
     if (has_end) {
-        if (night_end < 0 || night_end > 23) {
+        if (night_end > 23) {
             send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Invalid night_end_hour (must be 0-23)\"}");
             return ESP_OK;
         }
-        ret = telegram_set_night_end_hour(night_end);
+        ret = telegram_set_night_end_hour((int)night_end);
         if (ret != ESP_OK) {
             send_json_response(req, "{\"status\":\"ERROR\",\"message\":\"Failed to save night_end_hour\"}");
             return ESP_OK;

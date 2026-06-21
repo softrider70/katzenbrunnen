@@ -2,7 +2,6 @@
 #include "config.h"
 #include "esp_log.h"
 #include "esp_err.h"
-#include "dns_server.h"
 #include "lwip/err.h"
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
@@ -32,6 +31,13 @@ typedef struct __attribute__((packed)) {
 static void create_dns_response(uint8_t *response, uint16_t *response_len, 
                                  const uint8_t *request, uint16_t request_len,
                                  const char *redirect_ip) {
+    // Puffer-Overflow verhindern: Response braucht request_len + ~20 Bytes Answer
+    if (request_len > 492) {
+        ESP_LOGW(TAG, "DNS-Request zu groß für Response-Puffer: %d", request_len);
+        *response_len = 0;
+        return;
+    }
+
     dns_header_t *req_header = (dns_header_t *)request;
     dns_header_t *resp_header = (dns_header_t *)response;
     
@@ -125,8 +131,12 @@ static void dns_server_task(void *pvParameters) {
         // DNS-Response erstellen (alle Anfragen auf AP-IP weiterleiten)
         uint16_t response_len;
         create_dns_response(response_buffer, &response_len, request_buffer, recv_len, WIFI_AP_IP);
-        
-        // Response senden
+
+        // Response senden (überspringen wenn Puffer-Overflow-Schutz ausgelöst hat)
+        if (response_len == 0) {
+            continue;
+        }
+
         int sent_len = sendto(dns_server_socket, response_buffer, response_len, 0,
                               (struct sockaddr *)&client_addr, client_addr_len);
         
@@ -177,9 +187,9 @@ esp_err_t dns_server_start(void) {
     BaseType_t ret = xTaskCreatePinnedToCore(
         dns_server_task,
         "dns_server",
-        4096,
+        TASK_STACK_DNS,
         NULL,
-        5,
+        TASK_PRIO_DNS,
         NULL,
         TASK_CORE_NETWORK
     );

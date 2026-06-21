@@ -455,10 +455,8 @@ esp_err_t wifi_set_credentials(const char *ssid, const char *password)
     strncpy(wifi_state.ssid, ssid, sizeof(wifi_state.ssid) - 1);
     wifi_state.ssid[sizeof(wifi_state.ssid) - 1] = '\0';
     wifi_state.retry_count = 0;
-    xSemaphoreGive(wifi_mutex);
-    
-    // Verbindungsversuch mit neuen Daten starten
     has_sta_credentials = true;
+    xSemaphoreGive(wifi_mutex);
     esp_wifi_disconnect();
     esp_wifi_connect();
     
@@ -540,7 +538,7 @@ esp_err_t wifi_reset_credentials(void)
 void wifi_module_deinit(void)
 {
     // mDNS-Ressourcen freigeben
-    mdns_deinit();
+    mdns_free();
 
     // Mutex löschen
     if (wifi_mutex != NULL) {

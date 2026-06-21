@@ -15,7 +15,7 @@ Automatischer Katzenbrunnen für Katzen zur Selbstversorgung mit Wasser. Das Sys
 - **Statusanzeige** mit RGB LED
 - **Persistente Datenspeicherung** der Aktivierungszykler
 - **Web-UI** mit tabellarischer Anzeige von Bewegungen und Öffnungszeiten
-- **OTA-Updates** für Firmware-Austausch über WLAN
+- **OTA-Updates** für Firmware-Austausch über WLAN (aktiv)
 - **Telegram-Benachrichtigungen** für Status-Updates und Alarme
 
 **FreeRTOS Task-Architektur:**
@@ -82,30 +82,34 @@ GPIO5   → 2N7000 MOSFET Gate (Low-Side-Switching für Servo-Stromversorgung)
 ### Web-UI:
 - **Tabelle** mit Bewegungsereignissen (Zeitstempel, Dauer)
 - **Tabelle** mit Öffnungszeiten (Start, Ende, Dauer)
-- **OTA-Steuerbereich** für Firmware-Updates (ESP-IDF 6.1: aktuell deaktiviert)
+- **OTA-Steuerbereich** für Firmware-Updates (ESP-IDF 6.1: aktiv)
 - **WiFi-Konfiguration** für Netzwerk-Setup
 - **Servo-Konfiguration** (neu):
   - Close-Timeout (1-30 Sekunden) - Zeit ohne HIGH-Signal vor Schließen (Default: 8s)
   - Servo-Position offen (50-20000µs) - Pulsweite für geöffneten Wasserhahn (Default: 250µs)
   - Servo-Position geschlossen (50-20000µs) - Pulsweite für geschlossenen Wasserhahn (Default: 750µs)
   - FET-An-Zeit (1-10 Sekunden) - Zeit für Servo-Stellzeit vor Stromabschaltung
-  - **Servo-Endpunkte:** 555µs im Uhrzeigersinn, 2400µs gegen den Uhrzeigersinn
+  - **Servo-Endpunkte:** 170µs (offen), 780µs (geschlossen) - bewährte Werte für Gigaline Servo
 - **Error-Log-Anzeige** mit farbcodierter Schweregrad-Indikator
 - **Telegram-Konfiguration** (neu):
   - Bot Token und Chat ID über Web-UI konfigurieren
   - Test-Nachrichten senden
   - Persistente Speicherung in NVS
+  - **Nachrichten aktivieren/deaktivieren** (Toggle)
+  - **Nacht-Modus:** Nachrichten puffern zwischen konfigurierbaren Start- und Stoppzeiten (z.B. 23-8 Uhr)
+  - **Nacht-Buffer:** Gepufferte Nachrichten werden beim Verlassen des Nacht-Modus gesendet
 
 ### WiFi-Einrichtung (Captive Portal):
 - **AP-Start bei fehlenden Credentials:** Wenn kein WiFi-Passwort im NVS gespeichert ist, startet automatisch der Access Point
 - **AP-Start nach 3 Fehlversuchen:** Wenn 3 aufeinanderfolgende Anmeldeversuche mit gespeicherten Credentials fehlschlagen, startet der AP
 - **Captive Portal:** Nach Verbindung mit dem AP wird der Client automatisch auf die WiFi-Einrichtungsseite weitergeleitet
+  - **iOS Support:** Spezieller Handler für /hotspot-detect.html
 - **Einrichtung über Web-UI:** SSID und Passwort können direkt im Browser eingegeben werden
 - **Automatische Verbindung:** Nach erfolgreicher Einrichtung verbindet sich das Gerät automatisch mit dem konfigurierten Netzwerk
 - **mDNS-Hostname:** Gerät ist unter `katzenbrunnen.local` im Netzwerk erreichbar
 
 ### System-Reset Funktionen:
-- **WiFi-Reset:** Löscht gespeicherte WiFi-Credentials und startet AP-Modus neu
+- **WiFi-Reset:** Löscht gespeicherte WiFi-Credentials und startet AP-Modus neu (mit Neustart)
 - **System-Reset:** Neustart des gesamten ESP32-Systems
 
 ### Telegram-Benachrichtigungen:
@@ -116,8 +120,11 @@ GPIO5   → 2N7000 MOSFET Gate (Low-Side-Switching für Servo-Stromversorgung)
   - `GET /api/telegram_config` - Prüft ob konfiguriert
   - `POST /api/telegram_config` - Speichert Bot Token und Chat ID
   - `POST /api/telegram/test` - Sendet Test-Nachricht
-- **NVS-Speicherung:** Token und Chat ID werden persistent im NVS gespeichert (Namespace: "telegram")
+  - `POST /api/telegram/enabled` - Aktiviert/Deaktiviert Nachrichten
+  - `POST /api/telegram/night_hours` - Konfiguriert Nacht-Modus Zeiten
+- **NVS-Speicherung:** Token, Chat ID, Enabled-Status und Nacht-Zeiten werden persistent im NVS gespeichert (Namespace: "telegram")
 - **TLS/HTTPS:** Automatische Zertifikatsvalidierung über esp_crt_bundle
+- **Nacht-Modus:** Nachrichten werden zwischen Start- und Stoppzeit gepuffert und beim Verlassen des Nacht-Modus gesendet
 
 **WICHTIG:** Bot Token und Chat ID sind sensible Zugangsdaten und sollten sicher aufbewahrt werden. Sie werden nicht in der README dokumentiert, sondern nur im NVS des ESP32 gespeichert.
 
@@ -138,6 +145,8 @@ katzenbrunnen/
 │       ├── wifi.c              WiFi-Management Modul
 │       ├── web_server.c        Web-Server Modul (HTTP-Handler)
 │       ├── ota.c               OTA-Update Modul (ESP-IDF 6.1 Stub)
+│       ├── dns_server.c        DNS-Server Modul (Captive Portal)
+│       └── telegram.c          Telegram-Benachrichtigungs Modul
 │       └── CMakeLists.txt      Component build config
 ├── include/
 │   ├── config.h            Hardware-Konfiguration (Pins, Parameter)
@@ -149,7 +158,9 @@ katzenbrunnen/
 │   ├── watchdog.h          Watchdog Header
 │   ├── wifi.h              WiFi-Management Header
 │   ├── web_server.h        Web-Server Header
-│   └── ota.h               OTA-Update Header
+│   ├── ota.h               OTA-Update Header
+│   ├── dns_server.h        DNS-Server Header
+│   └── telegram.h          Telegram Header
 ├── tools/
 │   ├── build-and-commit.ps1     Build mit automatischer Buildnummer
 │   ├── flash-mode.ps1           USB/OTA Flash-Workflow

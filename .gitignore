@@ -5,6 +5,7 @@ build_*/
 # IDE-Konfiguration
 .vscode/
 .devin/
+.windsurf/
 
 # ESP-IDF
 sdkconfig

@@ -191,13 +191,7 @@ katzenbrunnen/
 - **web_server.c/h:** HTTP-Server, API-Endpunkte, HTML/JSON-Generierung
 - **ota.c/h:** OTA-Update-Logik (ESP-IDF 6.1 Stub - API-Änderungen)
 
-**Regeln:**
-- Jedes Modul hat eigene .c und .h Dateien
-- Header-Dateien enthalten nur öffentliche APIs und Konstanten
-- Interne Funktionen bleiben in .c Dateien
-- Globale Variablen werden minimiert und durch Getter/Setter ersetzt
-- Thread-Sicherheit über Semaphores/Mutexes pro Modul
-- **NVS-Schlüssel-Längen-Validierung:** NVS-Schlüssel dürfen maximal 15 Zeichen lang sein (ESP-IDF Limit). Alle NVS_KEY_* Defines müssen ≤15 Zeichen sein.
+**Regeln:** Projektübergreifende Modul-Struktur- und NVS-Konventionen sind als globale Memory-Regeln hinterlegt.
 
 ## Quick Start
 
@@ -366,26 +360,29 @@ idf.py build
 ## Resource Management
 
 ### Mutex Cleanup
-Alle Module mit Mutex-Synchronisation haben entsprechende `*_deinit()` Funktionen:
+Projektübergreifendes `*_deinit()` Pattern ist als globale Memory-Regel hinterlegt.
+
+Dieses Projekt hat folgende Deinit-Funktionen:
 - `wifi_module_deinit()` - WiFi-Modul (umbenannt wegen Namenskonflikt mit esp_wifi-Library)
 - `stack_monitor_deinit()` - Stack-Monitor
 - `heap_monitor_deinit()` - Heap-Monitor
 - `servo_deinit()` - Servo-Modul
 - `ota_deinit()` - OTA-Modul
+- `telegram_deinit()` - Telegram-Modul (Mutex-Cleanup)
 - `error_log_deinit()` - Error-Log
 - `deinit_hardware()` - Hardware-State Mutex
 
-Diese Funktionen löschen die Mutexes und verhindern Memory Leaks. Für Embedded-Systeme werden diese Funktionen typischerweise nur bei System-Reset oder Shutdown aufgerufen.
-
 ### Task Lifecycle
-Die folgenden FreeRTOS-Tasks laufen bis zum System-Reset:
+Projektübergreifende Task-Lifecycle-Konvention ist als globale Memory-Regel hinterlegt.
+
+Dieses Projekt hat folgende Tasks:
 - `control_task` - Hauptsteuerung (PIR, Servo)
 - `wifi_task` - WiFi-Management
 - `stack_monitor_task` - Stack-Überwachung
 - `heap_monitor_task` - Heap-Überwachung
 - `dns_server_task` - DNS-Server
+- `ota_health_check_task` - OTA Health-Check (automatischer Rollback)
 
-Tasks werden nicht explizit gelöscht (`vTaskDelete`), da sie für den gesamten Betrieb des Systems benötigt werden. Dies ist für Embedded-Systeme akzeptabel und üblich.
 
 **Flash doesn't work:**
 - Check USB connection: `idf.py monitor --no-reset`
